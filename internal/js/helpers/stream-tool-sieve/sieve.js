@@ -197,7 +197,11 @@ function findToolSegmentStart(state, s) {
     }
     const keyIdx = bestKeyIdx;
     const start = s.slice(0, keyIdx).lastIndexOf('{');
-    let candidateStart = start >= 0 ? start : keyIdx;
+    if (start < 0) {
+      offset = keyIdx + matchedKeyword.length;
+      continue;
+    }
+    let candidateStart = start;
     // If the keyword matched inside an XML tag (e.g. "tool_calls" in "<tool_calls>"),
     // back up past the '<' to capture the full tag.
     if (candidateStart > 0 && s[candidateStart - 1] === '<') {

@@ -252,6 +252,18 @@ test('sieve keeps plain text intact in tool mode when no tool call appears', () 
   assert.equal(leakedText, '你好，这是普通文本回复。请继续。');
 });
 
+test('sieve does not start capture on plain "tool_calls" prose without opening json brace', () => {
+  const events = runSieve(
+    ['前置。', '这里提到 tool_calls 只是解释，不是调用。', '后置。'],
+    ['read_file'],
+  );
+  const leakedText = collectText(events);
+  const hasToolCall = events.some((evt) => evt.type === 'tool_calls' && evt.calls?.length > 0);
+  assert.equal(hasToolCall, false);
+  assert.equal(leakedText.includes('tool_calls'), true);
+  assert.equal(leakedText, '前置。这里提到 tool_calls 只是解释，不是调用。后置。');
+});
+
 test('sieve emits unknown tool payload (no args) as executable tool call', () => {
   const events = runSieve(
     ['{"tool_calls":[{"name":"not_in_schema"}]}', '后置正文G。'],
