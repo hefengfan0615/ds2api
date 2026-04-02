@@ -31,7 +31,7 @@ flowchart LR
     Client["🖥️ Clients / SDKs\n(OpenAI / Claude / Gemini)"]
     Upstream["☁️ DeepSeek API"]
 
-    subgraph DS2API["DS2API 3.x (Unified Go Routing Core)"]
+    subgraph DS2API["DS2API 3.x (Unified OpenAI Core)"]
         Router["chi Router + Middleware\n(RequestID / RealIP / Logger / Recoverer / CORS)"]
 
         subgraph Adapters["Protocol Adapters"]
@@ -43,13 +43,13 @@ flowchart LR
         end
 
         subgraph Runtime["Runtime + Core Capabilities"]
+            Bridge["CLIProxy Bridge\n(multi-protocol <-> OpenAI)"]
+            OAEngine["OpenAI ChatCompletions\n(unified tools + stream semantics)"]
             Auth["Auth Resolver\n(API key / bearer / x-goog-api-key)"]
             Pool["Account Pool + Queue\n(in-flight slots + wait queue)"]
             DSClient["DeepSeek Client\n(session / auth / HTTP)"]
             Pow["PoW WASM\n(wazero preload)"]
-            SSE["SSE/Stream Engine\n(unified streaming consumption)"]
             Tool["Tool Sieve\n(Go/Node semantic parity)"]
-            Render["Formatter\n(OpenAI/Claude/Gemini output)"]
         end
     end
 
@@ -58,17 +58,18 @@ flowchart LR
     Router --> Admin
     Router --> WebUI
 
-    OA & CA & GA --> Auth
-    OA & CA & GA -.account rotation.-> Pool
-    OA & CA & GA -.tool-call parsing.-> Tool
-    OA & CA & GA -.stream handling.-> SSE
-    OA & CA & GA -.PoW solving.-> Pow
-
+    OA --> OAEngine
+    CA & GA --> Bridge
+    Bridge --> OAEngine
+    OAEngine --> Auth
+    OAEngine -.account rotation.-> Pool
+    OAEngine -.tool-call parsing.-> Tool
+    OAEngine -.PoW solving.-> Pow
     Auth --> DSClient
     DSClient --> Upstream
     Upstream --> DSClient
-    DSClient --> Render
-    Render --> Client
+    OAEngine --> Bridge
+    Bridge --> Client
 ```
 
 - **Backend**: Go (`cmd/ds2api/`, `api/`, `internal/`), no Python runtime
@@ -78,7 +79,8 @@ flowchart LR
 ### 3.0 Architecture Changes (vs older releases)
 
 - **Unified routing core**: all protocol entries are now centralized through `internal/server/router.go`, with OpenAI / Claude / Gemini / Admin / WebUI routes registered in one tree to avoid multi-entry drift.
-- **Cleaner adapter boundaries**: `internal/adapter/{openai,claude,gemini}` focuses on protocol shapes, error contracts, and streaming semantics, while upstream DeepSeek invocation stays shared.
+- **Unified execution chain**: Claude/Gemini entries are translated by `internal/translatorcliproxy`, then executed through `openai.ChatCompletions` for shared tool-calling and stream semantics, then translated back to the client protocol.
+- **Cleaner adapter boundaries**: `internal/adapter/{claude,gemini}` handles protocol wrappers, while `internal/adapter/openai` remains the execution core; upstream DeepSeek calls are retained only in the OpenAI core.
 - **Tool-calling parity across runtimes**: Go (`internal/util`) and Vercel Node (`internal/js/helpers/stream-tool-sieve`) follow aligned parsing/anti-leak semantics across JSON / XML / invoke / text-kv inputs.
 - **Config/runtime separation**: static config (`config`) and runtime policy (`settings`) are managed independently via Admin APIs, enabling hot updates and password rotation with JWT invalidation.
 - **Streaming behavior upgrade**: `/v1/responses` and `/v1/chat/completions` now share a more consistent incremental tool-call emission strategy across SDK ecosystems.

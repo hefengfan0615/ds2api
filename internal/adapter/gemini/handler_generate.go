@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"ds2api/internal/auth"
 	"ds2api/internal/sse"
 	"ds2api/internal/translatorcliproxy"
 	"ds2api/internal/util"
@@ -19,62 +18,14 @@ import (
 )
 
 func (h *Handler) handleGenerateContent(w http.ResponseWriter, r *http.Request, stream bool) {
-	if h.OpenAI != nil {
-		if h.proxyViaOpenAI(w, r, stream) {
-			return
-		}
-	}
-	a, err := h.Auth.Determine(r)
-	if err != nil {
-		status := http.StatusUnauthorized
-		detail := err.Error()
-		if err == auth.ErrNoAccount {
-			status = http.StatusTooManyRequests
-		}
-		writeGeminiError(w, status, detail)
+	if h.OpenAI == nil {
+		writeGeminiError(w, http.StatusInternalServerError, "OpenAI proxy backend unavailable.")
 		return
 	}
-	defer h.Auth.Release(a)
-
-	var req map[string]any
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeGeminiError(w, http.StatusBadRequest, "invalid json")
+	if h.proxyViaOpenAI(w, r, stream) {
 		return
 	}
-
-	routeModel := strings.TrimSpace(chi.URLParam(r, "model"))
-	stdReq, err := normalizeGeminiRequest(h.Store, routeModel, req, stream)
-	if err != nil {
-		writeGeminiError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	sessionID, err := h.DS.CreateSession(r.Context(), a, 3)
-	if err != nil {
-		if a.UseConfigToken {
-			writeGeminiError(w, http.StatusUnauthorized, "Account token is invalid. Please re-login the account in admin.")
-		} else {
-			writeGeminiError(w, http.StatusUnauthorized, "Invalid token.")
-		}
-		return
-	}
-	pow, err := h.DS.GetPow(r.Context(), a, 3)
-	if err != nil {
-		writeGeminiError(w, http.StatusUnauthorized, "Failed to get PoW (invalid token or unknown error).")
-		return
-	}
-	payload := stdReq.CompletionPayload(sessionID)
-	resp, err := h.DS.CallCompletion(r.Context(), a, payload, pow, 3)
-	if err != nil {
-		writeGeminiError(w, http.StatusInternalServerError, "Failed to get completion.")
-		return
-	}
-
-	if stream {
-		h.handleStreamGenerateContent(w, r, resp, stdReq.ResponseModel, stdReq.FinalPrompt, stdReq.Thinking, stdReq.Search, stdReq.ToolNames)
-		return
-	}
-	h.handleNonStreamGenerateContent(w, resp, stdReq.ResponseModel, stdReq.FinalPrompt, stdReq.Thinking, stdReq.ToolNames)
+	writeGeminiError(w, http.StatusBadGateway, "Failed to proxy Gemini request.")
 }
 
 func (h *Handler) proxyViaOpenAI(w http.ResponseWriter, r *http.Request, stream bool) bool {
@@ -139,13 +90,7 @@ func (h *Handler) proxyViaOpenAI(w http.ResponseWriter, r *http.Request, stream 
 	defer res.Body.Close()
 	body, _ := io.ReadAll(res.Body)
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		for k, vv := range res.Header {
-			for _, v := range vv {
-				w.Header().Add(k, v)
-			}
-		}
-		w.WriteHeader(res.StatusCode)
-		_, _ = w.Write(body)
+		writeGeminiErrorFromOpenAI(w, res.StatusCode, body)
 		return true
 	}
 	if isVercelPrepare {
@@ -163,6 +108,22 @@ func (h *Handler) proxyViaOpenAI(w http.ResponseWriter, r *http.Request, stream 
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(converted)
 	return true
+}
+
+func writeGeminiErrorFromOpenAI(w http.ResponseWriter, status int, raw []byte) {
+	message := strings.TrimSpace(string(raw))
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err == nil {
+		if errObj, ok := parsed["error"].(map[string]any); ok {
+			if msg, ok := errObj["message"].(string); ok && strings.TrimSpace(msg) != "" {
+				message = strings.TrimSpace(msg)
+			}
+		}
+	}
+	if message == "" {
+		message = http.StatusText(status)
+	}
+	writeGeminiError(w, status, message)
 }
 
 func (h *Handler) handleNonStreamGenerateContent(w http.ResponseWriter, resp *http.Response, model, finalPrompt string, thinkingEnabled bool, toolNames []string) {

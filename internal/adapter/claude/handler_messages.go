@@ -3,17 +3,12 @@ package claude
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"time"
 
-	"ds2api/internal/auth"
 	"ds2api/internal/config"
-	claudefmt "ds2api/internal/format/claude"
-	"ds2api/internal/sse"
 	streamengine "ds2api/internal/stream"
 	"ds2api/internal/translatorcliproxy"
 	"ds2api/internal/util"
@@ -25,80 +20,17 @@ func (h *Handler) Messages(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(r.Header.Get("anthropic-version")) == "" {
 		r.Header.Set("anthropic-version", "2023-06-01")
 	}
-	if h.OpenAI != nil {
-		if h.proxyViaOpenAI(w, r) {
-			return
-		}
-	}
-	a, err := h.Auth.Determine(r)
-	if err != nil {
-		status := http.StatusUnauthorized
-		detail := err.Error()
-		if err == auth.ErrNoAccount {
-			status = http.StatusTooManyRequests
-		}
-		writeClaudeError(w, status, detail)
+	if h.OpenAI == nil {
+		writeClaudeError(w, http.StatusInternalServerError, "OpenAI proxy backend unavailable.")
 		return
 	}
-	defer h.Auth.Release(a)
-
-	var req map[string]any
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeClaudeError(w, http.StatusBadRequest, "invalid json")
+	if h.proxyViaOpenAI(w, r, h.Store) {
 		return
 	}
-	norm, err := normalizeClaudeRequest(h.Store, req)
-	if err != nil {
-		writeClaudeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	stdReq := norm.Standard
-
-	sessionID, err := h.DS.CreateSession(r.Context(), a, 3)
-	if err != nil {
-		writeClaudeError(w, http.StatusUnauthorized, "invalid token.")
-		return
-	}
-	pow, err := h.DS.GetPow(r.Context(), a, 3)
-	if err != nil {
-		writeClaudeError(w, http.StatusUnauthorized, "Failed to get PoW")
-		return
-	}
-	requestPayload := stdReq.CompletionPayload(sessionID)
-	resp, err := h.DS.CallCompletion(r.Context(), a, requestPayload, pow, 3)
-	if err != nil {
-		writeClaudeError(w, http.StatusInternalServerError, "Failed to get Claude response.")
-		return
-	}
-	if resp.StatusCode != http.StatusOK {
-		defer resp.Body.Close()
-		body, _ := io.ReadAll(resp.Body)
-		writeClaudeError(w, http.StatusInternalServerError, string(body))
-		return
-	}
-
-	if stdReq.Stream {
-		h.handleClaudeStreamRealtime(w, r, resp, stdReq.ResponseModel, norm.NormalizedMessages, stdReq.Thinking, stdReq.Search, stdReq.ToolNames)
-		return
-	}
-	result := sse.CollectStream(resp, stdReq.Thinking, true)
-	respBody := claudefmt.BuildMessageResponse(
-		fmt.Sprintf("msg_%d", time.Now().UnixNano()),
-		stdReq.ResponseModel,
-		norm.NormalizedMessages,
-		result.Thinking,
-		result.Text,
-		stdReq.ToolNames,
-	)
-	if result.OutputTokens > 0 {
-		if usage, ok := respBody["usage"].(map[string]any); ok {
-			usage["output_tokens"] = result.OutputTokens
-		}
-	}
-	writeJSON(w, http.StatusOK, respBody)
+	writeClaudeError(w, http.StatusBadGateway, "Failed to proxy Claude request.")
 }
 
-func (h *Handler) proxyViaOpenAI(w http.ResponseWriter, r *http.Request) bool {
+func (h *Handler) proxyViaOpenAI(w http.ResponseWriter, r *http.Request, store ConfigReader) bool {
 	raw, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeClaudeError(w, http.StatusBadRequest, "invalid body")
@@ -111,7 +43,15 @@ func (h *Handler) proxyViaOpenAI(w http.ResponseWriter, r *http.Request) bool {
 	}
 	model, _ := req["model"].(string)
 	stream := util.ToBool(req["stream"])
-	translatedReq := translatorcliproxy.ToOpenAI(sdktranslator.FormatClaude, model, raw, stream)
+
+	// Preserve claude_mapping (fast/slow/opus routing) while proxying via OpenAI.
+	translateModel := model
+	if store != nil {
+		if norm, normErr := normalizeClaudeRequest(store, cloneMap(req)); normErr == nil && strings.TrimSpace(norm.Standard.ResolvedModel) != "" {
+			translateModel = strings.TrimSpace(norm.Standard.ResolvedModel)
+		}
+	}
+	translatedReq := translatorcliproxy.ToOpenAI(sdktranslator.FormatClaude, translateModel, raw, stream)
 
 	isVercelPrepare := strings.TrimSpace(r.URL.Query().Get("__stream_prepare")) == "1"
 	isVercelRelease := strings.TrimSpace(r.URL.Query().Get("__stream_release")) == "1"

@@ -31,7 +31,7 @@ flowchart LR
     Client["🖥️ 客户端 / SDK\n(OpenAI / Claude / Gemini)"]
     Upstream["☁️ DeepSeek API"]
 
-    subgraph DS2API["DS2API 3.x（统一 Go 路由内核）"]
+    subgraph DS2API["DS2API 3.x（统一 OpenAI 内核）"]
         Router["chi Router + 中间件\n(RequestID / RealIP / Logger / Recoverer / CORS)"]
 
         subgraph Adapters["协议适配层"]
@@ -43,13 +43,13 @@ flowchart LR
         end
 
         subgraph Runtime["运行时核心能力"]
+            Bridge["CLIProxy 转换桥\n(多协议 <-> OpenAI)"]
+            OAEngine["OpenAI ChatCompletions\n(统一工具调用与流式语义)"]
             Auth["Auth Resolver\n(API key / bearer / x-goog-api-key)"]
             Pool["Account Pool + Queue\n(并发槽位 + 等待队列)"]
             DSClient["DeepSeek Client\n(Session / Auth / HTTP)"]
             Pow["PoW WASM\n(wazero 预加载)"]
-            SSE["SSE/Stream Engine\n(统一流式消费)"]
             Tool["Tool Sieve\n(Go/Node 语义对齐)"]
-            Render["Formatter\n(OpenAI/Claude/Gemini 输出)"]
         end
     end
 
@@ -58,17 +58,18 @@ flowchart LR
     Router --> Admin
     Router --> WebUI
 
-    OA & CA & GA --> Auth
-    OA & CA & GA -.账号轮询.-> Pool
-    OA & CA & GA -.工具调用解析.-> Tool
-    OA & CA & GA -.流式处理.-> SSE
-    OA & CA & GA -.PoW 计算.-> Pow
-
+    OA --> OAEngine
+    CA & GA --> Bridge
+    Bridge --> OAEngine
+    OAEngine --> Auth
+    OAEngine -.账号轮询.-> Pool
+    OAEngine -.工具调用解析.-> Tool
+    OAEngine -.PoW 计算.-> Pow
     Auth --> DSClient
     DSClient --> Upstream
     Upstream --> DSClient
-    DSClient --> Render
-    Render --> Client
+    OAEngine --> Bridge
+    Bridge --> Client
 ```
 
 - **后端**：Go（`cmd/ds2api/`、`api/`、`internal/`），不依赖 Python 运行时
@@ -78,7 +79,8 @@ flowchart LR
 ### 3.0 底层架构调整（相较旧版本）
 
 - **统一路由内核**：所有协议入口统一汇聚到 `internal/server/router.go`，并在同一路由树中注册 OpenAI / Claude / Gemini / Admin / WebUI 路由，避免多入口行为漂移。
-- **适配器分层更清晰**：`internal/adapter/{openai,claude,gemini}` 只负责协议形态、错误格式和流式事件语义，DeepSeek 侧调用统一收敛到共享调用层。
+- **统一执行链路**：Claude / Gemini 入口先经 `internal/translatorcliproxy` 做协议转换，再进入 `openai.ChatCompletions` 统一处理工具调用与流式语义，最后再转换回原协议响应。
+- **适配器分层更清晰**：`internal/adapter/{claude,gemini}` 负责入口/出口协议封装，`internal/adapter/openai` 负责核心执行，DeepSeek 侧调用只保留在 OpenAI 内核中。
 - **Tool Calling 双运行时对齐**：Go 侧（`internal/util`）与 Vercel Node 侧（`internal/js/helpers/stream-tool-sieve`）保持一致的解析/防泄漏语义，覆盖 JSON / XML / invoke / text-kv 多风格输入。
 - **配置与运行时设置解耦**：静态配置（`config`）与运行时策略（`settings`）通过 Admin API 分离管理，支持热更新和密码轮换失效旧 JWT。
 - **流式能力升级**：`/v1/responses` 与 `/v1/chat/completions` 共享更一致的工具调用增量输出策略，降低不同 SDK 下的行为差异。
