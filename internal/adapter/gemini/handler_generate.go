@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"ds2api/internal/toolcall"
 	"bytes"
 	"encoding/json"
 	"io"
@@ -186,9 +187,9 @@ func buildGeminiUsage(finalPrompt, finalThinking, finalText string, outputTokens
 }
 
 func buildGeminiPartsFromFinal(finalText, finalThinking string, toolNames []string) []map[string]any {
-	detected := util.ParseToolCalls(finalText, toolNames)
+	detected := toolcall.ParseToolCalls(finalText, toolNames)
 	if len(detected) == 0 && finalThinking != "" {
-		detected = util.ParseToolCalls(finalThinking, toolNames)
+		detected = toolcall.ParseToolCalls(finalThinking, toolNames)
 	}
 	if len(detected) > 0 {
 		parts := make([]map[string]any, 0, len(detected))

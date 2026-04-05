@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -119,7 +120,7 @@ func (h *Handler) handleResponsesNonStream(w http.ResponseWriter, resp *http.Res
 	if writeUpstreamEmptyOutputError(w, sanitizedThinking, sanitizedText, result.ContentFilter) {
 		return
 	}
-	textParsed := util.ParseStandaloneToolCallsDetailed(sanitizedText, toolNames)
+	textParsed := toolcall.ParseStandaloneToolCallsDetailed(sanitizedText, toolNames)
 	logResponsesToolPolicyRejection(traceID, toolChoice, textParsed, "text")
 
 	callCount := len(textParsed.Calls)
@@ -200,7 +201,7 @@ func (h *Handler) handleResponsesStream(w http.ResponseWriter, r *http.Request, 
 	})
 }
 
-func logResponsesToolPolicyRejection(traceID string, policy util.ToolChoicePolicy, parsed util.ToolCallParseResult, channel string) {
+func logResponsesToolPolicyRejection(traceID string, policy util.ToolChoicePolicy, parsed toolcall.ToolCallParseResult, channel string) {
 	rejected := filteredRejectedToolNamesForLog(parsed.RejectedToolNames)
 	if !parsed.RejectedByPolicy || len(rejected) == 0 {
 		return

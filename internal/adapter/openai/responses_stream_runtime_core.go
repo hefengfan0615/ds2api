@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"net/http"
 	"strings"
 
@@ -107,7 +108,7 @@ func (s *responsesStreamRuntime) finalize() {
 		s.processToolStreamEvents(flushToolSieve(&s.sieve, s.toolNames), true)
 	}
 
-	textParsed := util.ParseStandaloneToolCallsDetailed(finalText, s.toolNames)
+	textParsed := toolcall.ParseStandaloneToolCallsDetailed(finalText, s.toolNames)
 	detected := textParsed.Calls
 	s.logToolPolicyRejections(textParsed)
 
@@ -163,8 +164,8 @@ func (s *responsesStreamRuntime) finalize() {
 	s.sendDone()
 }
 
-func (s *responsesStreamRuntime) logToolPolicyRejections(textParsed util.ToolCallParseResult) {
-	logRejected := func(parsed util.ToolCallParseResult, channel string) {
+func (s *responsesStreamRuntime) logToolPolicyRejections(textParsed toolcall.ToolCallParseResult) {
+	logRejected := func(parsed toolcall.ToolCallParseResult, channel string) {
 		rejected := filteredRejectedToolNamesForLog(parsed.RejectedToolNames)
 		if !parsed.RejectedByPolicy || len(rejected) == 0 {
 			return

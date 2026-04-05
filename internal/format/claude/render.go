@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"ds2api/internal/toolcall"
 	"fmt"
 	"time"
 
@@ -8,9 +9,9 @@ import (
 )
 
 func BuildMessageResponse(messageID, model string, normalizedMessages []any, finalThinking, finalText string, toolNames []string) map[string]any {
-	detected := util.ParseToolCalls(finalText, toolNames)
+	detected := toolcall.ParseToolCalls(finalText, toolNames)
 	if len(detected) == 0 && finalText == "" && finalThinking != "" {
-		detected = util.ParseToolCalls(finalThinking, toolNames)
+		detected = toolcall.ParseToolCalls(finalThinking, toolNames)
 	}
 	content := make([]map[string]any, 0, 4)
 	if finalThinking != "" {

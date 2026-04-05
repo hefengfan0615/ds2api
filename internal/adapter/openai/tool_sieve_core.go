@@ -3,7 +3,7 @@ package openai
 import (
 	"strings"
 
-	"ds2api/internal/util"
+	"ds2api/internal/toolcall"
 )
 
 func processToolSieveChunk(state *toolStreamSieveState, chunk string, toolNames []string) []toolStreamEvent {
@@ -226,7 +226,7 @@ func findToolSegmentStart(s string) int {
 	return start
 }
 
-func consumeToolCapture(state *toolStreamSieveState, toolNames []string) (prefix string, calls []util.ParsedToolCall, suffix string, ready bool) {
+func consumeToolCapture(state *toolStreamSieveState, toolNames []string) (prefix string, calls []toolcall.ParsedToolCall, suffix string, ready bool) {
 	captured := state.capture.String()
 	if captured == "" {
 		return "", nil, "", false
@@ -267,7 +267,7 @@ func consumeToolCapture(state *toolStreamSieveState, toolNames []string) (prefix
 	}
 	prefixPart := captured[:start]
 	suffixPart := captured[end:]
-	parsed := util.ParseStandaloneToolCallsDetailed(obj, toolNames)
+	parsed := toolcall.ParseStandaloneToolCallsDetailed(obj, toolNames)
 	if len(parsed.Calls) == 0 {
 		if parsed.SawToolCallSyntax && parsed.RejectedByPolicy {
 			// Parsed as tool-call payload but rejected by schema/policy:

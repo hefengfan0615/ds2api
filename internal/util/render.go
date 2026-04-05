@@ -1,6 +1,7 @@
 package util
 
 import (
+	"ds2api/internal/toolcall"
 	"fmt"
 	"strings"
 	"time"
@@ -11,7 +12,7 @@ import (
 // BuildOpenAIChatCompletion is kept for backward compatibility.
 // Prefer internal/format/openai.BuildChatCompletion for new code.
 func BuildOpenAIChatCompletion(completionID, model, finalPrompt, finalThinking, finalText string, toolNames []string) map[string]any {
-	detected := ParseToolCalls(finalText, toolNames)
+	detected := toolcall.ParseToolCalls(finalText, toolNames)
 	finishReason := "stop"
 	messageObj := map[string]any{"role": "assistant", "content": finalText}
 	if strings.TrimSpace(finalThinking) != "" {
@@ -19,7 +20,7 @@ func BuildOpenAIChatCompletion(completionID, model, finalPrompt, finalThinking, 
 	}
 	if len(detected) > 0 {
 		finishReason = "tool_calls"
-		messageObj["tool_calls"] = FormatOpenAIToolCalls(detected)
+		messageObj["tool_calls"] = toolcall.FormatOpenAIToolCalls(detected)
 		messageObj["content"] = nil
 	}
 	promptTokens := EstimateTokens(finalPrompt)
@@ -46,7 +47,7 @@ func BuildOpenAIChatCompletion(completionID, model, finalPrompt, finalThinking, 
 // BuildOpenAIResponseObject is kept for backward compatibility.
 // Prefer internal/format/openai.BuildResponseObject for new code.
 func BuildOpenAIResponseObject(responseID, model, finalPrompt, finalThinking, finalText string, toolNames []string) map[string]any {
-	detected := ParseToolCalls(finalText, toolNames)
+	detected := toolcall.ParseToolCalls(finalText, toolNames)
 	exposedOutputText := finalText
 	output := make([]any, 0, 2)
 	if len(detected) > 0 {
@@ -56,9 +57,9 @@ func BuildOpenAIResponseObject(responseID, model, finalPrompt, finalThinking, fi
 		toolCalls := make([]any, 0, len(detected))
 		for _, tc := range detected {
 			toolCalls = append(toolCalls, map[string]any{
-				"type":      "tool_call",
-				"name":      tc.Name,
-				"arguments": tc.Input,
+				"type":       "tool_call",
+				"name":       tc.Name,
+				"arguments":  tc.Input,
 			})
 		}
 		output = append(output, map[string]any{
@@ -108,7 +109,7 @@ func BuildOpenAIResponseObject(responseID, model, finalPrompt, finalThinking, fi
 // BuildClaudeMessageResponse is kept for backward compatibility.
 // Prefer internal/format/claude.BuildMessageResponse for new code.
 func BuildClaudeMessageResponse(messageID, model string, normalizedMessages []any, finalThinking, finalText string, toolNames []string) map[string]any {
-	detected := ParseToolCalls(finalText, toolNames)
+	detected := toolcall.ParseToolCalls(finalText, toolNames)
 	content := make([]map[string]any, 0, 4)
 	if finalThinking != "" {
 		content = append(content, map[string]any{"type": "thinking", "thinking": finalThinking})

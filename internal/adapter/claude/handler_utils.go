@@ -1,12 +1,12 @@
 package claude
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"fmt"
 	"strings"
 
 	"ds2api/internal/prompt"
-	"ds2api/internal/util"
 )
 
 func normalizeClaudeMessages(messages []any) []any {
@@ -98,7 +98,7 @@ func buildClaudeToolPrompt(tools []any) string {
 	}
 	return "You have access to these tools:\n\n" +
 		strings.Join(toolSchemas, "\n\n") + "\n\n" +
-		util.BuildToolCallInstructions(names)
+		toolcall.BuildToolCallInstructions(names)
 }
 
 func formatClaudeToolResultForPrompt(block map[string]any) string {

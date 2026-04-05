@@ -1,12 +1,12 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"sort"
 	"strings"
 
 	openaifmt "ds2api/internal/format/openai"
-	"ds2api/internal/util"
 )
 
 func (s *responsesStreamRuntime) closeIncompleteFunctionItems() {
@@ -57,7 +57,7 @@ func (s *responsesStreamRuntime) closeIncompleteFunctionItems() {
 	}
 }
 
-func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, finalText string, calls []util.ParsedToolCall) map[string]any {
+func (s *responsesStreamRuntime) buildCompletedResponseObject(finalThinking, finalText string, calls []toolcall.ParsedToolCall) map[string]any {
 	type indexedItem struct {
 		index int
 		item  map[string]any

@@ -1,6 +1,7 @@
 package compat
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -86,22 +87,22 @@ func TestGoCompatToolcallFixtures(t *testing.T) {
 		mustLoadJSON(t, fixturePath, &fixture)
 
 		var expected struct {
-			Calls             []util.ParsedToolCall `json:"calls"`
+			Calls             []toolcall.ParsedToolCall `json:"calls"`
 			SawToolCallSyntax bool                  `json:"sawToolCallSyntax"`
 			RejectedByPolicy  bool                  `json:"rejectedByPolicy"`
 			RejectedToolNames []string              `json:"rejectedToolNames"`
 		}
 		mustLoadJSON(t, expectedPath, &expected)
 
-		var got util.ToolCallParseResult
+		var got toolcall.ToolCallParseResult
 		switch strings.ToLower(strings.TrimSpace(fixture.Mode)) {
 		case "standalone":
-			got = util.ParseStandaloneToolCallsDetailed(fixture.Text, fixture.ToolNames)
+			got = toolcall.ParseStandaloneToolCallsDetailed(fixture.Text, fixture.ToolNames)
 		default:
-			got = util.ParseToolCallsDetailed(fixture.Text, fixture.ToolNames)
+			got = toolcall.ParseToolCallsDetailed(fixture.Text, fixture.ToolNames)
 		}
 		if got.Calls == nil {
-			got.Calls = []util.ParsedToolCall{}
+			got.Calls = []toolcall.ParsedToolCall{}
 		}
 		if got.RejectedToolNames == nil {
 			got.RejectedToolNames = []string{}

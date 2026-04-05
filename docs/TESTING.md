@@ -180,10 +180,10 @@ go test ./...
 
 ```bash
 # 运行 tool calls 相关测试（推荐用于调试 tool call 解析问题）
-go test -v -run 'TestParseToolCalls|TestRepair' ./internal/util/
+go test -v -run 'TestParseToolCalls|TestRepair' ./internal/toolcall/
 
 # 运行单个测试用例
-go test -v -run TestParseToolCallsWithDeepSeekHallucination ./internal/util/
+go test -v -run TestParseToolCallsWithDeepSeekHallucination ./internal/toolcall/
 
 # 运行 format 相关测试
 go test -v ./internal/format/...
@@ -198,13 +198,13 @@ go test -v ./internal/adapter/openai/...
 
 ```bash
 # 1. 运行 tool calls 相关的所有测试
-go test -v -run 'TestParseToolCalls|TestRepair' ./internal/util/
+go test -v -run 'TestParseToolCalls|TestRepair' ./internal/toolcall/
 
 # 2. 查看测试输出中的详细调试信息
-go test -v -run TestParseToolCallsWithDeepSeekHallucination ./internal/util/ 2>&1
+go test -v -run TestParseToolCallsWithDeepSeekHallucination ./internal/toolcall/ 2>&1
 
 # 3. 检查具体测试用例的修复效果
-# 测试用例位于 internal/util/toolcalls_test.go，包含：
+# 测试用例位于 internal/toolcall/toolcalls_test.go，包含：
 # - TestParseToolCallsWithDeepSeekHallucination: DeepSeek 典型幻觉输出
 # - TestRepairLooseJSONWithNestedObjects: 嵌套对象的方括号修复
 # - TestParseToolCallsWithMixedWindowsPaths: Windows 路径处理

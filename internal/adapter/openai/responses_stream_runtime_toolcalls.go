@@ -1,11 +1,11 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"strings"
 
 	openaifmt "ds2api/internal/format/openai"
-	"ds2api/internal/util"
 
 	"github.com/google/uuid"
 )
@@ -208,7 +208,7 @@ func (s *responsesStreamRuntime) emitFunctionCallDeltaEvents(deltas []toolCallDe
 	}
 }
 
-func (s *responsesStreamRuntime) emitFunctionCallDoneEvents(calls []util.ParsedToolCall) {
+func (s *responsesStreamRuntime) emitFunctionCallDoneEvents(calls []toolcall.ParsedToolCall) {
 	for idx, tc := range calls {
 		if strings.TrimSpace(tc.Name) == "" {
 			continue

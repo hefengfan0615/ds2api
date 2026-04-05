@@ -81,7 +81,7 @@ flowchart LR
 - **Unified routing core**: all protocol entries are now centralized through `internal/server/router.go`, with OpenAI / Claude / Gemini / Admin / WebUI routes registered in one tree to avoid multi-entry drift.
 - **Unified execution chain**: Claude/Gemini entries are translated by `internal/translatorcliproxy`, then executed through `openai.ChatCompletions` for shared tool-calling and stream semantics, then translated back to the client protocol.
 - **Cleaner adapter boundaries**: `internal/adapter/{claude,gemini}` handles protocol wrappers, while `internal/adapter/openai` remains the execution core; upstream DeepSeek calls are retained only in the OpenAI core.
-- **Tool-calling parity across runtimes**: Go (`internal/util`) and Vercel Node (`internal/js/helpers/stream-tool-sieve`) follow aligned parsing/anti-leak semantics across JSON / XML / invoke / text-kv inputs.
+- **Tool-calling parity across runtimes**: Go (`internal/toolcall`) and Vercel Node (`internal/js/helpers/stream-tool-sieve`) follow aligned parsing/anti-leak semantics across JSON / XML / invoke / text-kv inputs.
 - **Config/runtime separation**: static config (`config`) and runtime policy (`settings`) are managed independently via Admin APIs, enabling hot updates and password rotation with JWT invalidation.
 - **Streaming behavior upgrade**: `/v1/responses` and `/v1/chat/completions` now share a more consistent incremental tool-call emission strategy across SDK ecosystems.
 - **Improved operability**: `/healthz`, `/readyz`, `/admin/version`, and `/admin/dev/captures` form a tighter post-deploy diagnostics loop.
@@ -464,7 +464,8 @@ ds2api/
 │   ├── stream/              # Unified stream consumption engine
 │   ├── testsuite/           # End-to-end testsuite framework and case orchestration
 │   ├── translatorcliproxy/  # CLIProxy bridge and stream writer components
-│   ├── util/                # Common utilities
+│   ├── toolcall/            # Tool Call parsing, repair, and formatting (core business logic)
+│   ├── util/                # Common utilities (Token estimation, JSON helpers, etc.)
 │   ├── version/             # Version parsing/comparison and tag normalization
 │   └── webui/               # WebUI static file serving and auto-build
 ├── webui/                   # React WebUI source (Vite + Tailwind)

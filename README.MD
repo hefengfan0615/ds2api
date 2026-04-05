@@ -81,7 +81,7 @@ flowchart LR
 - **统一路由内核**：所有协议入口统一汇聚到 `internal/server/router.go`，并在同一路由树中注册 OpenAI / Claude / Gemini / Admin / WebUI 路由，避免多入口行为漂移。
 - **统一执行链路**：Claude / Gemini 入口先经 `internal/translatorcliproxy` 做协议转换，再进入 `openai.ChatCompletions` 统一处理工具调用与流式语义，最后再转换回原协议响应。
 - **适配器分层更清晰**：`internal/adapter/{claude,gemini}` 负责入口/出口协议封装，`internal/adapter/openai` 负责核心执行，DeepSeek 侧调用只保留在 OpenAI 内核中。
-- **Tool Calling 双运行时对齐**：Go 侧（`internal/util`）与 Vercel Node 侧（`internal/js/helpers/stream-tool-sieve`）保持一致的解析/防泄漏语义，覆盖 JSON / XML / invoke / text-kv 多风格输入。
+- **Tool Calling 双运行时对齐**：Go 侧（`internal/toolcall`）与 Vercel Node 侧（`internal/js/helpers/stream-tool-sieve`）保持一致的解析/防泄漏语义，覆盖 JSON / XML / invoke / text-kv 多风格输入。
 - **配置与运行时设置解耦**：静态配置（`config`）与运行时策略（`settings`）通过 Admin API 分离管理，支持热更新和密码轮换失效旧 JWT。
 - **流式能力升级**：`/v1/responses` 与 `/v1/chat/completions` 共享更一致的工具调用增量输出策略，降低不同 SDK 下的行为差异。
 - **可观测与可运维增强**：`/healthz`、`/readyz`、`/admin/version`、`/admin/dev/captures` 形成排障闭环，便于发布后验证。
@@ -466,7 +466,8 @@ ds2api/
 │   ├── stream/              # 统一流式消费引擎
 │   ├── testsuite/           # 端到端测试框架与用例编排
 │   ├── translatorcliproxy/  # CLIProxy 桥接与流写入组件
-│   ├── util/                # 通用工具函数
+│   ├── toolcall/            # Tool Call 解析、修复与格式化（核心业务逻辑）
+│   ├── util/                # 通用工具函数（Token 估算、JSON 辅助等）
 │   ├── version/             # 版本解析 / 比较与 tag 规范化
 │   └── webui/               # WebUI 静态文件托管与自动构建
 ├── webui/                   # React WebUI 源码（Vite + Tailwind）
@@ -543,7 +544,7 @@ npm ci --prefix webui && npm run build --prefix webui
 go test ./...
 
 # 运行 tool calls 相关测试（调试工具调用问题）
-go test -v -run 'TestParseToolCalls|TestRepair' ./internal/util/
+go test -v -run 'TestParseToolCalls|TestRepair' ./internal/toolcall/
 
 # 运行端到端测试
 ./tests/scripts/run-live.sh

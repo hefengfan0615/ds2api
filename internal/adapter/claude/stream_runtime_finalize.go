@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -46,9 +47,9 @@ func (s *claudeStreamRuntime) finalize(stopReason string) {
 	finalText := cleanVisibleOutput(s.text.String(), s.stripReferenceMarkers)
 
 	if s.bufferToolContent {
-		detected := util.ParseStandaloneToolCalls(finalText, s.toolNames)
+		detected := toolcall.ParseStandaloneToolCalls(finalText, s.toolNames)
 		if len(detected) == 0 && finalText == "" && finalThinking != "" {
-			detected = util.ParseStandaloneToolCalls(finalThinking, s.toolNames)
+			detected = toolcall.ParseStandaloneToolCalls(finalThinking, s.toolNames)
 		}
 		if len(detected) > 0 {
 			stopReason = "tool_use"

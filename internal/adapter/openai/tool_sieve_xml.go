@@ -1,10 +1,10 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"regexp"
 	"strings"
 
-	"ds2api/internal/util"
 )
 
 // --- XML tool call support for the streaming sieve ---
@@ -43,7 +43,7 @@ var xmlToolTagsToDetect = []string{"<tool_calls>", "<tool_calls\n", "<tool_call>
 	"<attempt_completion>", "<ask_followup_question>", "<new_task>"}
 
 // consumeXMLToolCapture tries to extract complete XML tool call blocks from captured text.
-func consumeXMLToolCapture(captured string, toolNames []string) (prefix string, calls []util.ParsedToolCall, suffix string, ready bool) {
+func consumeXMLToolCapture(captured string, toolNames []string) (prefix string, calls []toolcall.ParsedToolCall, suffix string, ready bool) {
 	lower := strings.ToLower(captured)
 	// Find the FIRST matching open/close pair, preferring wrapper tags.
 	// Tag pairs are ordered longest-first (e.g. <tool_calls before <tool_call)
@@ -66,7 +66,7 @@ func consumeXMLToolCapture(captured string, toolNames []string) (prefix string, 
 		xmlBlock := captured[openIdx:closeEnd]
 		prefixPart := captured[:openIdx]
 		suffixPart := captured[closeEnd:]
-		parsed := util.ParseToolCalls(xmlBlock, toolNames)
+		parsed := toolcall.ParseToolCalls(xmlBlock, toolNames)
 		if len(parsed) > 0 {
 			prefixPart, suffixPart = trimWrappingJSONFence(prefixPart, suffixPart)
 			return prefixPart, parsed, suffixPart, true

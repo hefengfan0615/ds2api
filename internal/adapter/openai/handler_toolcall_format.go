@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -75,7 +76,7 @@ func injectToolPrompt(messages []map[string]any, tools []any, policy util.ToolCh
 
 // buildToolCallInstructions delegates to the shared util implementation.
 func buildToolCallInstructions(toolNames []string) string {
-	return util.BuildToolCallInstructions(toolNames)
+	return toolcall.BuildToolCallInstructions(toolNames)
 }
 
 func formatIncrementalStreamToolCallDeltas(deltas []toolCallDelta, ids map[int]string) []map[string]any {
@@ -138,7 +139,7 @@ func filterIncrementalToolCallDeltasByAllowed(deltas []toolCallDelta, allowedNam
 	return out
 }
 
-func formatFinalStreamToolCallsWithStableIDs(calls []util.ParsedToolCall, ids map[int]string) []map[string]any {
+func formatFinalStreamToolCallsWithStableIDs(calls []toolcall.ParsedToolCall, ids map[int]string) []map[string]any {
 	if len(calls) == 0 {
 		return nil
 	}

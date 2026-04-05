@@ -1,14 +1,14 @@
 package openai
 
 import (
+	"ds2api/internal/toolcall"
 	"strings"
 	"time"
 
-	"ds2api/internal/util"
 )
 
 func BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalText string, toolNames []string) map[string]any {
-	detected := util.ParseStandaloneToolCallsDetailed(finalText, toolNames)
+	detected := toolcall.ParseStandaloneToolCallsDetailed(finalText, toolNames)
 	finishReason := "stop"
 	messageObj := map[string]any{"role": "assistant", "content": finalText}
 	if strings.TrimSpace(finalThinking) != "" {
@@ -16,7 +16,7 @@ func BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalT
 	}
 	if len(detected.Calls) > 0 {
 		finishReason = "tool_calls"
-		messageObj["tool_calls"] = util.FormatOpenAIToolCalls(detected.Calls)
+		messageObj["tool_calls"] = toolcall.FormatOpenAIToolCalls(detected.Calls)
 		messageObj["content"] = nil
 	}
 
