@@ -83,4 +83,9 @@ func TestStoreThinkingInjectionAccessors(t *testing.T) {
 	if store.ThinkingInjectionEnabled() {
 		t.Fatal("expected thinking injection disabled by explicit config")
 	}
+
+	store.cfg.ThinkingInjection.Prompt = "  custom thinking prompt  "
+	if got := store.ThinkingInjectionPrompt(); got != "custom thinking prompt" {
+		t.Fatalf("thinking injection prompt=%q want custom thinking prompt", got)
+	}
 }

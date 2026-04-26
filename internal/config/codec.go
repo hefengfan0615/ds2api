@@ -51,7 +51,7 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	if c.CurrentInputFile.Enabled != nil || c.CurrentInputFile.MinChars != 0 {
 		m["current_input_file"] = c.CurrentInputFile
 	}
-	if c.ThinkingInjection.Enabled != nil {
+	if c.ThinkingInjection.Enabled != nil || strings.TrimSpace(c.ThinkingInjection.Prompt) != "" {
 		m["thinking_injection"] = c.ThinkingInjection
 	}
 	if c.VercelSyncHash != "" {
@@ -177,6 +177,7 @@ func (c Config) Clone() Config {
 		},
 		ThinkingInjection: ThinkingInjectionConfig{
 			Enabled: cloneBoolPtr(c.ThinkingInjection.Enabled),
+			Prompt:  c.ThinkingInjection.Prompt,
 		},
 		VercelSyncHash:   c.VercelSyncHash,
 		VercelSyncTime:   c.VercelSyncTime,

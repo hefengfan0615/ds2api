@@ -19,7 +19,7 @@ const DEFAULT_FORM = {
     auto_delete: { mode: 'none' },
     history_split: { enabled: false, trigger_after_turns: 1 },
     current_input_file: { enabled: true, min_chars: 0 },
-    thinking_injection: { enabled: true },
+    thinking_injection: { enabled: true, prompt: '', default_prompt: '' },
     model_aliases_text: '{}',
 }
 
@@ -84,6 +84,8 @@ function fromServerForm(data) {
         },
         thinking_injection: {
             enabled: data.thinking_injection?.enabled ?? true,
+            prompt: data.thinking_injection?.prompt || '',
+            default_prompt: data.thinking_injection?.default_prompt || '',
         },
         model_aliases_text: JSON.stringify(data.model_aliases || {}, null, 2),
     }
@@ -116,6 +118,7 @@ function toServerPayload(form) {
         },
         thinking_injection: {
             enabled: Boolean(form.thinking_injection?.enabled ?? true),
+            prompt: String(form.thinking_injection?.prompt || '').trim(),
         },
     }
 }

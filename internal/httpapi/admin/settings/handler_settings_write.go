@@ -89,6 +89,7 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if thinkingInjCfg != nil {
 			c.ThinkingInjection.Enabled = thinkingInjCfg.Enabled
+			c.ThinkingInjection.Prompt = thinkingInjCfg.Prompt
 		}
 		if aliasMap != nil {
 			c.ModelAliases = aliasMap

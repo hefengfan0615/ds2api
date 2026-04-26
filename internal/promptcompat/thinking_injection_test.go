@@ -51,6 +51,21 @@ func TestAppendThinkingInjectionToLatestUserArrayContent(t *testing.T) {
 	}
 }
 
+func TestAppendThinkingInjectionToLatestUserCustomPrompt(t *testing.T) {
+	messages := []any{
+		map[string]any{"role": "user", "content": "latest"},
+	}
+
+	out, changed := AppendThinkingInjectionPromptToLatestUser(messages, "custom thinking format")
+	if !changed {
+		t.Fatal("expected custom thinking injection to be appended")
+	}
+	content, _ := out[0].(map[string]any)["content"].(string)
+	if !strings.Contains(content, "latest\n\ncustom thinking format") {
+		t.Fatalf("expected custom injection after latest user text, got %q", content)
+	}
+}
+
 func TestAppendThinkingInjectionToLatestUserSkipsDuplicate(t *testing.T) {
 	messages := []any{
 		map[string]any{"role": "user", "content": "latest\n\n" + DefaultThinkingInjectionPrompt},

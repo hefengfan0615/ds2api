@@ -75,6 +75,12 @@ func TestGetSettingsIncludesHistorySplitDefaults(t *testing.T) {
 	if got := boolFrom(thinkingInjection["enabled"]); !got {
 		t.Fatalf("expected thinking_injection.enabled=true, body=%v", body)
 	}
+	if got, _ := thinkingInjection["prompt"].(string); got != "" {
+		t.Fatalf("expected empty custom thinking prompt, got %q body=%v", got, body)
+	}
+	if got, _ := thinkingInjection["default_prompt"].(string); got == "" {
+		t.Fatalf("expected default thinking prompt, body=%v", body)
+	}
 }
 
 func TestUpdateSettingsValidation(t *testing.T) {
@@ -264,6 +270,7 @@ func TestUpdateSettingsThinkingInjection(t *testing.T) {
 	payload := map[string]any{
 		"thinking_injection": map[string]any{
 			"enabled": false,
+			"prompt":  " custom thinking prompt ",
 		},
 	}
 	b, _ := json.Marshal(payload)
@@ -279,6 +286,9 @@ func TestUpdateSettingsThinkingInjection(t *testing.T) {
 	}
 	if h.Store.ThinkingInjectionEnabled() {
 		t.Fatal("expected thinking injection accessor to reflect disabled config")
+	}
+	if got := h.Store.ThinkingInjectionPrompt(); got != "custom thinking prompt" {
+		t.Fatalf("expected custom thinking prompt, got %q", got)
 	}
 }
 

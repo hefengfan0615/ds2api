@@ -199,6 +199,9 @@ func parseSettingsUpdateRequest(req map[string]any) (*config.AdminConfig, *confi
 			b := boolFrom(v)
 			cfg.Enabled = &b
 		}
+		if v, exists := raw["prompt"]; exists {
+			cfg.Prompt = strings.TrimSpace(fmt.Sprintf("%v", v))
+		}
 		thinkingInjCfg = cfg
 	}
 

@@ -6,7 +6,7 @@ func ApplyThinkingInjection(store ConfigReader, stdReq promptcompat.StandardRequ
 	if store == nil || !store.ThinkingInjectionEnabled() || !stdReq.Thinking {
 		return stdReq
 	}
-	messages, changed := promptcompat.AppendThinkingInjectionToLatestUser(stdReq.Messages)
+	messages, changed := promptcompat.AppendThinkingInjectionPromptToLatestUser(stdReq.Messages, store.ThinkingInjectionPrompt())
 	if !changed {
 		return stdReq
 	}

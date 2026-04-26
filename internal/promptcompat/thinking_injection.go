@@ -12,8 +12,16 @@ const (
 )
 
 func AppendThinkingInjectionToLatestUser(messages []any) ([]any, bool) {
+	return AppendThinkingInjectionPromptToLatestUser(messages, "")
+}
+
+func AppendThinkingInjectionPromptToLatestUser(messages []any, injectionPrompt string) ([]any, bool) {
 	if len(messages) == 0 {
 		return messages, false
+	}
+	injectionPrompt = strings.TrimSpace(injectionPrompt)
+	if injectionPrompt == "" {
+		injectionPrompt = DefaultThinkingInjectionPrompt
 	}
 	for i := len(messages) - 1; i >= 0; i-- {
 		msg, ok := messages[i].(map[string]any)
@@ -24,10 +32,11 @@ func AppendThinkingInjectionToLatestUser(messages []any) ([]any, bool) {
 			continue
 		}
 		content := msg["content"]
-		if strings.Contains(NormalizeOpenAIContentForPrompt(content), ThinkingInjectionMarker) {
+		normalizedContent := NormalizeOpenAIContentForPrompt(content)
+		if strings.Contains(normalizedContent, ThinkingInjectionMarker) || strings.Contains(normalizedContent, injectionPrompt) {
 			return messages, false
 		}
-		updatedContent := appendThinkingInjectionToContent(content)
+		updatedContent := appendThinkingInjectionToContent(content, injectionPrompt)
 		out := append([]any(nil), messages...)
 		cloned := make(map[string]any, len(msg))
 		for k, v := range msg {
@@ -40,20 +49,20 @@ func AppendThinkingInjectionToLatestUser(messages []any) ([]any, bool) {
 	return messages, false
 }
 
-func appendThinkingInjectionToContent(content any) any {
+func appendThinkingInjectionToContent(content any, injectionPrompt string) any {
 	switch x := content.(type) {
 	case string:
-		return appendTextBlock(x, DefaultThinkingInjectionPrompt)
+		return appendTextBlock(x, injectionPrompt)
 	case []any:
 		out := append([]any(nil), x...)
 		out = append(out, map[string]any{
 			"type": "text",
-			"text": DefaultThinkingInjectionPrompt,
+			"text": injectionPrompt,
 		})
 		return out
 	default:
 		text := NormalizeOpenAIContentForPrompt(content)
-		return appendTextBlock(text, DefaultThinkingInjectionPrompt)
+		return appendTextBlock(text, injectionPrompt)
 	}
 }
 

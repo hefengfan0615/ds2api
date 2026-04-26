@@ -284,7 +284,7 @@ go run ./cmd/ds2api
 - `history_split`：轮次拆分策略；默认关闭，开启后默认从第二轮开始将旧历史上传为 `HISTORY.txt`。
 - `current_input_file`：独立拆分策略；默认开启且阈值为 `0`，触发时将完整上下文合并上传为隐藏上下文文件，并跳过 `HISTORY.txt`。
 - `history_split` 与 `current_input_file` 互斥，最多启用一个；两者都关闭时请求直接透传。
-- `thinking_injection`：默认开启；在最新 user 消息末尾追加思考格式增强提示，提高工具调用前的思考结构稳定性。
+- `thinking_injection`：默认开启；在最新 user 消息末尾追加思考格式增强提示，提高工具调用前的思考结构稳定性；`prompt` 留空时使用内置默认提示词。
 
 环境变量完整列表见 [部署指南](docs/DEPLOY.md)，接口鉴权规则见 [API.md](API.md#鉴权规则)。
 

@@ -59,7 +59,8 @@
     "min_chars": 0
   },
   "thinking_injection": {
-    "enabled": true
+    "enabled": true,
+    "prompt": ""
   },
   "embeddings": {
     "provider": "deterministic"

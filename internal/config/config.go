@@ -184,5 +184,6 @@ type CurrentInputFileConfig struct {
 }
 
 type ThinkingInjectionConfig struct {
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *bool  `json:"enabled,omitempty"`
+	Prompt  string `json:"prompt,omitempty"`
 }

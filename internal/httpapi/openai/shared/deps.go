@@ -48,6 +48,7 @@ type ConfigReader interface {
 	CurrentInputFileEnabled() bool
 	CurrentInputFileMinChars() int
 	ThinkingInjectionEnabled() bool
+	ThinkingInjectionPrompt() string
 }
 
 type Deps struct {

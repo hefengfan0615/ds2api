@@ -46,6 +46,23 @@ export default function BehaviorSection({ t, form, setForm }) {
                         <span className="text-xs text-muted-foreground block">{t('settings.thinkingInjectionDesc')}</span>
                     </div>
                 </label>
+                <label className="text-sm space-y-2 md:col-span-2">
+                    <span className="text-muted-foreground">{t('settings.thinkingInjectionPrompt')}</span>
+                    <textarea
+                        rows={5}
+                        value={form.thinking_injection?.prompt || ''}
+                        placeholder={form.thinking_injection?.default_prompt || ''}
+                        onChange={(e) => setForm((prev) => ({
+                            ...prev,
+                            thinking_injection: {
+                                ...prev.thinking_injection,
+                                prompt: e.target.value,
+                            },
+                        }))}
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 resize-y min-h-32"
+                    />
+                    <p className="text-xs text-muted-foreground">{t('settings.thinkingInjectionPromptHelp')}</p>
+                </label>
             </div>
         </div>
     )

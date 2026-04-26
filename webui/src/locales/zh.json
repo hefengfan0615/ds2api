@@ -375,6 +375,8 @@
         "embeddingsProvider": "Embeddings Provider",
         "thinkingInjectionEnabled": "思考格式注入",
         "thinkingInjectionDesc": "在组装 prompt 前，将结构化 <think> 检查清单追加到最新用户消息末尾。",
+        "thinkingInjectionPrompt": "思考格式提示词",
+        "thinkingInjectionPromptHelp": "留空时使用内置默认提示词；默认内容会显示在输入框占位文本中。",
         "historySplitTitle": "上下文拆分",
         "historySplitDesc": "选择一种上下文拆分方式，减少超长 prompt 直接内联。",
         "historySplitEnabled": "轮次拆分（默认第二轮）",

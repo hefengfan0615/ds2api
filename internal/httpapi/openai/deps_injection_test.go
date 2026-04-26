@@ -19,6 +19,7 @@ type mockOpenAIConfig struct {
 	currentInputEnabled bool
 	currentInputMin     int
 	thinkingInjection   *bool
+	thinkingPrompt      string
 }
 
 func (m mockOpenAIConfig) ModelAliases() map[string]string { return m.aliases }
@@ -54,6 +55,7 @@ func (m mockOpenAIConfig) ThinkingInjectionEnabled() bool {
 	}
 	return *m.thinkingInjection
 }
+func (m mockOpenAIConfig) ThinkingInjectionPrompt() string { return m.thinkingPrompt }
 
 func TestNormalizeOpenAIChatRequestWithConfigInterface(t *testing.T) {
 	cfg := mockOpenAIConfig{

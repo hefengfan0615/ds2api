@@ -375,6 +375,8 @@
         "embeddingsProvider": "Embeddings provider",
         "thinkingInjectionEnabled": "Thinking format injection",
         "thinkingInjectionDesc": "Append a structured <think> checklist to the latest user message before prompt assembly.",
+        "thinkingInjectionPrompt": "Thinking format prompt",
+        "thinkingInjectionPromptHelp": "Leave empty to use the built-in default prompt shown as the input placeholder.",
         "historySplitTitle": "Context Split",
         "historySplitDesc": "Choose one context-splitting mode to avoid inlining very long prompts.",
         "historySplitEnabled": "Turn split (second turn by default)",

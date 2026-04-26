@@ -208,3 +208,9 @@ func (s *Store) ThinkingInjectionEnabled() bool {
 	}
 	return *s.cfg.ThinkingInjection.Enabled
 }
+
+func (s *Store) ThinkingInjectionPrompt() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return strings.TrimSpace(s.cfg.ThinkingInjection.Prompt)
+}

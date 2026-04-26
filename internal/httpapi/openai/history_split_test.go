@@ -183,6 +183,36 @@ func TestApplyThinkingInjectionAppendsLatestUserPrompt(t *testing.T) {
 	}
 }
 
+func TestApplyThinkingInjectionUsesCustomPrompt(t *testing.T) {
+	ds := &inlineUploadDSStub{}
+	h := &openAITestSurface{
+		Store: mockOpenAIConfig{
+			wideInput:         true,
+			thinkingInjection: boolPtr(true),
+			thinkingPrompt:    "custom thinking format",
+		},
+		DS: ds,
+	}
+	req := map[string]any{
+		"model": "deepseek-v4-flash",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "hello"},
+		},
+	}
+	stdReq, err := promptcompat.NormalizeOpenAIChatRequest(h.Store, req, "")
+	if err != nil {
+		t.Fatalf("normalize failed: %v", err)
+	}
+
+	out, err := h.applyHistorySplit(context.Background(), &auth.RequestAuth{DeepSeekToken: "token"}, stdReq)
+	if err != nil {
+		t.Fatalf("apply thinking injection failed: %v", err)
+	}
+	if !strings.Contains(out.FinalPrompt, "hello\n\ncustom thinking format") {
+		t.Fatalf("expected custom thinking injection after latest user message, got %s", out.FinalPrompt)
+	}
+}
+
 func TestApplyHistorySplitDirectPassThroughWhenBothSplitsDisabled(t *testing.T) {
 	ds := &inlineUploadDSStub{}
 	h := &openAITestSurface{
