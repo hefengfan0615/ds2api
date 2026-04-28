@@ -212,7 +212,7 @@ function parseStrictHistoryMessages(historyText) {
         }
 
         if (transcript.startsWith(USER_MARKER, cursor)) {
-            if (expectedRole !== 'user') return null
+            if (expectedRole !== 'user' && expectedRole !== 'user_or_tool' && expectedRole !== 'assistant_or_user') return null
             cursor += USER_MARKER.length
             const nextAssistant = transcript.indexOf(ASSISTANT_MARKER, cursor)
             const nextTool = transcript.indexOf(TOOL_MARKER, cursor)
@@ -254,7 +254,7 @@ function parseStrictHistoryMessages(historyText) {
         }
 
         if (transcript.startsWith(ASSISTANT_MARKER, cursor)) {
-            if (expectedRole !== 'assistant') return null
+            if (expectedRole !== 'assistant' && expectedRole !== 'assistant_or_user') return null
             cursor += ASSISTANT_MARKER.length
             const nextSentenceEnd = transcript.indexOf(END_SENTENCE_MARKER, cursor)
             if (nextSentenceEnd < 0) return null
@@ -263,21 +263,28 @@ function parseStrictHistoryMessages(historyText) {
                 content: transcript.slice(cursor, nextSentenceEnd),
             })
             cursor = nextSentenceEnd + END_SENTENCE_MARKER.length
-            expectedRole = 'user'
+            expectedRole = 'user_or_tool'
             continue
         }
 
         if (transcript.startsWith(TOOL_MARKER, cursor)) {
-            if (expectedRole !== 'tool' && expectedRole !== 'user') return null
+            if (expectedRole !== 'tool' && expectedRole !== 'user' && expectedRole !== 'user_or_tool') return null
             cursor += TOOL_MARKER.length
             const nextToolResultsEnd = transcript.indexOf(END_TOOL_RESULTS_MARKER, cursor)
             if (nextToolResultsEnd < 0) return null
+            parsed.push({
+                role: 'tool',
+                content: transcript.slice(cursor, nextToolResultsEnd),
+            })
             cursor = nextToolResultsEnd + END_TOOL_RESULTS_MARKER.length
-            expectedRole = 'user'
+            expectedRole = 'assistant_or_user'
             continue
         }
 
-        if (parsed.length && expectedRole === 'user') break
+        if (
+            parsed.length
+            && (expectedRole === 'user' || expectedRole === 'user_or_tool' || expectedRole === 'assistant_or_user')
+        ) break
         if (transcript.slice(cursor).trim() === '') break
         return null
     }
