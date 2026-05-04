@@ -462,6 +462,8 @@
         "projectIdHint": "Find it in Project Settings → General.",
         "teamIdLabel": "Team ID",
         "optional": "optional",
+        "saveCredentials": "Remember Vercel credentials",
+        "saveCredentialsHint": "Save the token, project ID, and team ID for the next sync.",
         "syncing": "Syncing...",
         "syncRedeploy": "Sync & redeploy",
         "redeployHint": "This triggers a Vercel redeploy and usually takes 30–60 seconds.",

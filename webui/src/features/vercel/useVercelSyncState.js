@@ -12,6 +12,7 @@ export function useVercelSyncState({ apiFetch, onMessage, t, isVercel = false })
     const [vercelToken, setVercelToken] = useState('')
     const [projectId, setProjectId] = useState('')
     const [teamId, setTeamId] = useState('')
+    const [saveCredentials, setSaveCredentials] = useState(true)
     const [loading, setLoading] = useState(false)
     const [result, setResult] = useState(null)
     const [preconfig, setPreconfig] = useState(null)
@@ -117,6 +118,7 @@ export function useVercelSyncState({ apiFetch, onMessage, t, isVercel = false })
                     vercel_token: tokenToUse,
                     project_id: projectId,
                     team_id: teamId || undefined,
+                    save_credentials: saveCredentials,
                 }),
             })
             const data = await res.json()
@@ -133,7 +135,7 @@ export function useVercelSyncState({ apiFetch, onMessage, t, isVercel = false })
         } finally {
             setLoading(false)
         }
-    }, [apiFetch, fetchSyncStatus, onMessage, preconfig?.has_token, projectId, t, teamId, vercelToken])
+    }, [apiFetch, fetchSyncStatus, onMessage, preconfig?.has_token, projectId, saveCredentials, t, teamId, vercelToken])
 
     return {
         vercelToken,
@@ -142,6 +144,8 @@ export function useVercelSyncState({ apiFetch, onMessage, t, isVercel = false })
         setProjectId,
         teamId,
         setTeamId,
+        saveCredentials,
+        setSaveCredentials,
         loading,
         result,
         preconfig,

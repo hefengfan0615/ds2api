@@ -23,7 +23,7 @@ func (h *Handler) syncVercel(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"detail": "invalid json"})
 		return
 	}
-	opts, err := parseVercelSyncOptions(req)
+	opts, err := parseVercelSyncOptions(req, h.Store.Snapshot().Vercel)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"detail": err.Error()})
 		return
@@ -50,6 +50,12 @@ func (h *Handler) syncVercel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	savedCreds := h.saveVercelProjectCredentials(r.Context(), client, opts, params, headers, envs)
+	credentialsWarning := ""
+	if saved, err := h.saveLocalVercelCredentials(opts); err == nil && saved {
+		savedCreds = append(savedCreds, "config.vercel")
+	} else if err != nil {
+		credentialsWarning = "保存 Vercel 凭据到本地配置失败: " + err.Error()
+	}
 	manual, deployURL := triggerVercelDeployment(r.Context(), client, opts.ProjectID, params, headers)
 	_ = h.Store.SetVercelSync(syncHashForJSON(cfgJSON), time.Now().Unix())
 	result := map[string]any{"success": true, "validated_accounts": validated}
@@ -66,6 +72,9 @@ func (h *Handler) syncVercel(w http.ResponseWriter, r *http.Request) {
 	if len(savedCreds) > 0 {
 		result["saved_credentials"] = savedCreds
 	}
+	if credentialsWarning != "" {
+		result["credentials_warning"] = credentialsWarning
+	}
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -78,7 +87,7 @@ type vercelSyncOptions struct {
 	UsePreconfig bool
 }
 
-func parseVercelSyncOptions(req map[string]any) (vercelSyncOptions, error) {
+func parseVercelSyncOptions(req map[string]any, saved config.VercelConfig) (vercelSyncOptions, error) {
 	vercelToken, _ := req["vercel_token"].(string)
 	projectID, _ := req["project_id"].(string)
 	teamID, _ := req["team_id"].(string)
@@ -92,13 +101,13 @@ func parseVercelSyncOptions(req map[string]any) (vercelSyncOptions, error) {
 	}
 	usePreconfig := vercelToken == "__USE_PRECONFIG__" || strings.TrimSpace(vercelToken) == ""
 	if usePreconfig {
-		vercelToken = strings.TrimSpace(os.Getenv("VERCEL_TOKEN"))
+		vercelToken = firstNonEmpty(os.Getenv("VERCEL_TOKEN"), saved.Token)
 	}
 	if strings.TrimSpace(projectID) == "" {
-		projectID = strings.TrimSpace(os.Getenv("VERCEL_PROJECT_ID"))
+		projectID = firstNonEmpty(os.Getenv("VERCEL_PROJECT_ID"), saved.ProjectID)
 	}
 	if strings.TrimSpace(teamID) == "" {
-		teamID = strings.TrimSpace(os.Getenv("VERCEL_TEAM_ID"))
+		teamID = firstNonEmpty(os.Getenv("VERCEL_TEAM_ID"), saved.TeamID)
 	}
 	vercelToken = strings.TrimSpace(vercelToken)
 	projectID = strings.TrimSpace(projectID)
@@ -114,6 +123,15 @@ func parseVercelSyncOptions(req map[string]any) (vercelSyncOptions, error) {
 		SaveCreds:    saveCreds,
 		UsePreconfig: usePreconfig,
 	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func buildVercelParams(teamID string) url.Values {
@@ -176,6 +194,25 @@ func (h *Handler) saveVercelProjectCredentials(ctx context.Context, client *http
 		}
 	}
 	return saved
+}
+
+func (h *Handler) saveLocalVercelCredentials(opts vercelSyncOptions) (bool, error) {
+	if !opts.SaveCreds {
+		return false, nil
+	}
+	err := h.Store.Update(func(c *config.Config) error {
+		token := opts.VercelToken
+		if opts.UsePreconfig {
+			token = c.Vercel.Token
+		}
+		c.Vercel = config.NormalizeVercelConfig(config.VercelConfig{
+			Token:     token,
+			ProjectID: opts.ProjectID,
+			TeamID:    opts.TeamID,
+		})
+		return nil
+	})
+	return err == nil, err
 }
 
 func triggerVercelDeployment(ctx context.Context, client *http.Client, projectID string, params url.Values, headers map[string]string) (bool, string) {
@@ -243,7 +280,7 @@ func (h *Handler) vercelStatus(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) exportSyncConfig(req map[string]any) (string, string, error) {
 	override, ok := req["config_override"]
 	if !ok || override == nil {
-		return h.Store.ExportJSONAndBase64()
+		return encodeVercelSyncConfig(h.Store.Snapshot())
 	}
 	raw, err := json.Marshal(override)
 	if err != nil {
@@ -253,8 +290,13 @@ func (h *Handler) exportSyncConfig(req map[string]any) (string, string, error) {
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return "", "", err
 	}
+	return encodeVercelSyncConfig(cfg)
+}
+
+func encodeVercelSyncConfig(cfg config.Config) (string, string, error) {
 	cfg.DropInvalidAccounts()
 	cfg.ClearAccountTokens()
+	cfg.ClearVercelCredentials()
 	cfg.VercelSyncHash = ""
 	cfg.VercelSyncTime = 0
 	b, err := json.Marshal(cfg)
@@ -272,6 +314,7 @@ func syncHashForJSON(s string) string {
 	cfg.VercelSyncHash = ""
 	cfg.VercelSyncTime = 0
 	cfg.ClearAccountTokens()
+	cfg.ClearVercelCredentials()
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return ""

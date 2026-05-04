@@ -15,6 +15,8 @@ export default function VercelSyncContainer({ onMessage, authFetch, isVercel = f
         setProjectId,
         teamId,
         setTeamId,
+        saveCredentials,
+        setSaveCredentials,
         loading,
         result,
         preconfig,
@@ -46,6 +48,8 @@ export default function VercelSyncContainer({ onMessage, authFetch, isVercel = f
                 setProjectId={setProjectId}
                 teamId={teamId}
                 setTeamId={setTeamId}
+                saveCredentials={saveCredentials}
+                setSaveCredentials={setSaveCredentials}
                 loading={loading}
                 onSync={handleSync}
             />

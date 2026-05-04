@@ -14,6 +14,8 @@ export default function VercelSyncForm({
     setProjectId,
     teamId,
     setTeamId,
+    saveCredentials,
+    setSaveCredentials,
     loading,
     onSync,
 }) {
@@ -124,6 +126,19 @@ export default function VercelSyncForm({
                         onChange={e => setTeamId(e.target.value)}
                     />
                 </div>
+
+                <label className="flex items-start gap-3 text-sm">
+                    <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-ring"
+                        checked={saveCredentials}
+                        onChange={e => setSaveCredentials(e.target.checked)}
+                    />
+                    <span className="space-y-1">
+                        <span className="block font-medium">{t('vercel.saveCredentials')}</span>
+                        <span className="block text-xs text-muted-foreground">{t('vercel.saveCredentialsHint')}</span>
+                    </span>
+                </label>
             </div>
 
             <div className="pt-4">

@@ -55,6 +55,45 @@ func (h *Handler) admin(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "WebUI not built. Run `cd webui && npm run build` first.", http.StatusNotFound)
 }
 
+// staticContentTypes pins the Content-Type of common WebUI assets so we do not
+// rely on mime.TypeByExtension, which on Windows consults the registry and can
+// return the wrong type (e.g. application/xml for .css) when third-party
+// software has overwritten HKEY_CLASSES_ROOT entries. Browsers strictly enforce
+// stylesheet/script MIME types and will refuse to apply a misidentified asset,
+// breaking the /admin page on affected machines.
+var staticContentTypes = map[string]string{
+	".css":   "text/css; charset=utf-8",
+	".js":    "text/javascript; charset=utf-8",
+	".mjs":   "text/javascript; charset=utf-8",
+	".html":  "text/html; charset=utf-8",
+	".htm":   "text/html; charset=utf-8",
+	".json":  "application/json; charset=utf-8",
+	".map":   "application/json; charset=utf-8",
+	".svg":   "image/svg+xml",
+	".png":   "image/png",
+	".jpg":   "image/jpeg",
+	".jpeg":  "image/jpeg",
+	".gif":   "image/gif",
+	".webp":  "image/webp",
+	".ico":   "image/x-icon",
+	".woff":  "font/woff",
+	".woff2": "font/woff2",
+	".ttf":   "font/ttf",
+	".otf":   "font/otf",
+	".txt":   "text/plain; charset=utf-8",
+	".wasm":  "application/wasm",
+}
+
+// setStaticContentType pins the response Content-Type by file extension so that
+// http.ServeFile does not fall back to mime.TypeByExtension (which on Windows
+// reads the registry and may return an incorrect type).
+func setStaticContentType(w http.ResponseWriter, fullPath string) {
+	ext := strings.ToLower(filepath.Ext(fullPath))
+	if ct, ok := staticContentTypes[ext]; ok {
+		w.Header().Set("Content-Type", ct)
+	}
+}
+
 func (h *Handler) serveFromDisk(w http.ResponseWriter, r *http.Request, staticDir string) {
 	path := strings.TrimPrefix(r.URL.Path, "/admin")
 	path = strings.TrimPrefix(path, "/")
@@ -70,6 +109,7 @@ func (h *Handler) serveFromDisk(w http.ResponseWriter, r *http.Request, staticDi
 			} else {
 				w.Header().Set("Cache-Control", "no-store, must-revalidate")
 			}
+			setStaticContentType(w, full)
 			http.ServeFile(w, r, full)
 			return
 		}
@@ -82,6 +122,7 @@ func (h *Handler) serveFromDisk(w http.ResponseWriter, r *http.Request, staticDi
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store, must-revalidate")
+	setStaticContentType(w, index)
 	http.ServeFile(w, r, index)
 }
 

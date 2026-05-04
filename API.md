@@ -671,11 +671,13 @@ data: {"type":"message_stop"}
 
 ### `GET /admin/vercel/config`
 
-返回 Vercel 预配置状态。
+返回 Vercel 预配置状态。优先读取环境变量，其次回退到已保存的 `vercel` 配置块。
 
 ```json
 {
   "has_token": true,
+  "token_preview": "vc****en",
+  "token_source": "config",
   "project_id": "prj_xxx",
   "team_id": null
 }
@@ -696,6 +698,12 @@ data: {"type":"message_stop"}
   "env_source_present": true,
   "env_writeback_enabled": true,
   "config_path": "/data/config.json",
+  "vercel": {
+    "has_token": true,
+    "token_preview": "vc****en",
+    "project_id": "prj_xxx",
+    "team_id": ""
+  },
   "accounts": [
     {
       "identifier": "user@example.com",
@@ -1109,11 +1117,11 @@ data: {"type":"message_stop"}
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `vercel_token` | ❌ | 空或 `__USE_PRECONFIG__` 则读环境变量 |
-| `project_id` | ❌ | 空则读 `VERCEL_PROJECT_ID` |
-| `team_id` | ❌ | 空则读 `VERCEL_TEAM_ID` |
+| `vercel_token` | ❌ | 空或 `__USE_PRECONFIG__` 则读环境变量，再回退到已保存配置 |
+| `project_id` | ❌ | 空则读 `VERCEL_PROJECT_ID`，再回退到已保存配置 |
+| `team_id` | ❌ | 空则读 `VERCEL_TEAM_ID`，再回退到已保存配置 |
 | `auto_validate` | ❌ | 默认 `true` |
-| `save_credentials` | ❌ | 默认 `true` |
+| `save_credentials` | ❌ | 默认 `true`；保存本次显式填写的 Vercel 凭据，供下次同步复用 |
 
 **成功响应**：
 

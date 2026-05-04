@@ -20,6 +20,7 @@ type Config struct {
 	AutoDelete        AutoDeleteConfig        `json:"auto_delete"`
 	CurrentInputFile  CurrentInputFileConfig  `json:"current_input_file,omitempty"`
 	ThinkingInjection ThinkingInjectionConfig `json:"thinking_injection,omitempty"`
+	Vercel            VercelConfig            `json:"vercel,omitempty"`
 	VercelSyncHash    string                  `json:"_vercel_sync_hash,omitempty"`
 	VercelSyncTime    int64                   `json:"_vercel_sync_time,omitempty"`
 	AdditionalFields  map[string]any          `json:"-"`
@@ -99,6 +100,7 @@ func (c *Config) NormalizeCredentials() {
 		c.Accounts[i].Remark = strings.TrimSpace(c.Accounts[i].Remark)
 	}
 
+	c.Vercel = NormalizeVercelConfig(c.Vercel)
 	c.normalizeModelAliases()
 }
 
@@ -174,4 +176,25 @@ type CurrentInputFileConfig struct {
 type ThinkingInjectionConfig struct {
 	Enabled *bool  `json:"enabled,omitempty"`
 	Prompt  string `json:"prompt,omitempty"`
+}
+
+type VercelConfig struct {
+	Token     string `json:"token,omitempty"`
+	ProjectID string `json:"project_id,omitempty"`
+	TeamID    string `json:"team_id,omitempty"`
+}
+
+func NormalizeVercelConfig(v VercelConfig) VercelConfig {
+	return VercelConfig{
+		Token:     strings.TrimSpace(v.Token),
+		ProjectID: strings.TrimSpace(v.ProjectID),
+		TeamID:    strings.TrimSpace(v.TeamID),
+	}
+}
+
+func (c *Config) ClearVercelCredentials() {
+	if c == nil {
+		return
+	}
+	c.Vercel = VercelConfig{}
 }

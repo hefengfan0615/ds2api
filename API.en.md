@@ -660,11 +660,13 @@ Requires JWT: `Authorization: Bearer <jwt>`
 
 ### `GET /admin/vercel/config`
 
-Returns Vercel preconfiguration status.
+Returns Vercel preconfiguration status. Environment variables are preferred, then the saved `vercel` config block is used as a fallback.
 
 ```json
 {
   "has_token": true,
+  "token_preview": "vc****en",
+  "token_source": "config",
   "project_id": "prj_xxx",
   "team_id": null
 }
@@ -685,6 +687,12 @@ Returns sanitized config, including both `keys` and `api_keys`.
   "env_source_present": true,
   "env_writeback_enabled": true,
   "config_path": "/data/config.json",
+  "vercel": {
+    "has_token": true,
+    "token_preview": "vc****en",
+    "project_id": "prj_xxx",
+    "team_id": ""
+  },
   "accounts": [
     {
       "identifier": "user@example.com",
@@ -1096,11 +1104,11 @@ The success payload includes `sample_id`, `dir`, `meta_path`, and `upstream_path
 
 | Field | Required | Notes |
 | --- | --- | --- |
-| `vercel_token` | ❌ | If empty or `__USE_PRECONFIG__`, read env |
-| `project_id` | ❌ | Fallback: `VERCEL_PROJECT_ID` |
-| `team_id` | ❌ | Fallback: `VERCEL_TEAM_ID` |
+| `vercel_token` | ❌ | If empty or `__USE_PRECONFIG__`, read env, then saved config |
+| `project_id` | ❌ | Fallback: `VERCEL_PROJECT_ID`, then saved config |
+| `team_id` | ❌ | Fallback: `VERCEL_TEAM_ID`, then saved config |
 | `auto_validate` | ❌ | Default `true` |
-| `save_credentials` | ❌ | Default `true` |
+| `save_credentials` | ❌ | Default `true`; saves explicitly supplied Vercel credentials for the next sync |
 
 **Success response**:
 

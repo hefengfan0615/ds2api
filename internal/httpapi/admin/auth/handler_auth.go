@@ -61,9 +61,34 @@ func (h *Handler) verify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getVercelConfig(w http.ResponseWriter, _ *http.Request) {
+	saved := h.Store.Snapshot().Vercel
+	token, tokenSource := firstConfiguredValue(
+		[2]string{"env", os.Getenv("VERCEL_TOKEN")},
+		[2]string{"config", saved.Token},
+	)
+	projectID, _ := firstConfiguredValue(
+		[2]string{"env", os.Getenv("VERCEL_PROJECT_ID")},
+		[2]string{"config", saved.ProjectID},
+	)
+	teamID, _ := firstConfiguredValue(
+		[2]string{"env", os.Getenv("VERCEL_TEAM_ID")},
+		[2]string{"config", saved.TeamID},
+	)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"has_token":  strings.TrimSpace(os.Getenv("VERCEL_TOKEN")) != "",
-		"project_id": strings.TrimSpace(os.Getenv("VERCEL_PROJECT_ID")),
-		"team_id":    nilIfEmpty(strings.TrimSpace(os.Getenv("VERCEL_TEAM_ID"))),
+		"has_token":     token != "",
+		"token_preview": maskSecretPreview(token),
+		"token_source":  nilIfEmpty(tokenSource),
+		"project_id":    projectID,
+		"team_id":       nilIfEmpty(teamID),
 	})
+}
+
+func firstConfiguredValue(values ...[2]string) (string, string) {
+	for _, pair := range values {
+		value := strings.TrimSpace(pair[1])
+		if value != "" {
+			return value, strings.TrimSpace(pair[0])
+		}
+	}
+	return "", ""
 }

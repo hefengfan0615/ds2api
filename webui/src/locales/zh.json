@@ -462,6 +462,8 @@
         "projectIdHint": "可在项目设置 (Project Settings) → 常规 (General) 中找到",
         "teamIdLabel": "团队 ID",
         "optional": "可选",
+        "saveCredentials": "记住 Vercel 凭据",
+        "saveCredentialsHint": "保存访问令牌、项目 ID 和团队 ID，供下次同步直接复用。",
         "syncing": "正在同步...",
         "syncRedeploy": "同步并重新部署",
         "redeployHint": "这将触发 Vercel 的重新部署，大约需要 30-60 秒。",

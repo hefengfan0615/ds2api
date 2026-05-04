@@ -78,6 +78,7 @@ func ComputeSyncHash(store ConfigStore) string {
 	}
 	snap := store.Snapshot().Clone()
 	snap.ClearAccountTokens()
+	snap.ClearVercelCredentials()
 	snap.VercelSyncHash = ""
 	snap.VercelSyncTime = 0
 	b, _ := json.Marshal(snap)
@@ -93,6 +94,7 @@ func SyncHashForJSON(s string) string {
 	cfg.VercelSyncHash = ""
 	cfg.VercelSyncTime = 0
 	cfg.ClearAccountTokens()
+	cfg.ClearVercelCredentials()
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return ""

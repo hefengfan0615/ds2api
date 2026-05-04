@@ -173,6 +173,11 @@ func TestConfigJSONRoundtrip(t *testing.T) {
 		Runtime: RuntimeConfig{
 			TokenRefreshIntervalHours: 12,
 		},
+		Vercel: VercelConfig{
+			Token:     " vercel-token ",
+			ProjectID: " prj_123 ",
+			TeamID:    " team_123 ",
+		},
 		VercelSyncHash: "hash123",
 		VercelSyncTime: 1234567890,
 		AdditionalFields: map[string]any{
@@ -204,6 +209,9 @@ func TestConfigJSONRoundtrip(t *testing.T) {
 	}
 	if decoded.AutoDelete.Mode != "single" {
 		t.Fatalf("unexpected auto delete mode: %#v", decoded.AutoDelete.Mode)
+	}
+	if decoded.Vercel.Token != "vercel-token" || decoded.Vercel.ProjectID != "prj_123" || decoded.Vercel.TeamID != "team_123" {
+		t.Fatalf("unexpected vercel config: %#v", decoded.Vercel)
 	}
 	if decoded.VercelSyncHash != "hash123" {
 		t.Fatalf("unexpected vercel sync hash: %q", decoded.VercelSyncHash)

@@ -94,6 +94,10 @@ func (h *Handler) configImport(w http.ResponseWriter, r *http.Request) {
 			if strings.TrimSpace(incoming.Embeddings.Provider) != "" {
 				next.Embeddings.Provider = incoming.Embeddings.Provider
 			}
+			incomingVercel := config.NormalizeVercelConfig(incoming.Vercel)
+			if strings.TrimSpace(incomingVercel.Token) != "" || strings.TrimSpace(incomingVercel.ProjectID) != "" || strings.TrimSpace(incomingVercel.TeamID) != "" {
+				next.Vercel = incomingVercel
+			}
 			if strings.TrimSpace(incoming.Admin.PasswordHash) != "" {
 				next.Admin.PasswordHash = incoming.Admin.PasswordHash
 			}

@@ -19,6 +19,12 @@ func (h *Handler) getConfig(w http.ResponseWriter, _ *http.Request) {
 		"env_writeback_enabled": h.Store.IsEnvWritebackEnabled(),
 		"config_path":           h.Store.ConfigPath(),
 		"model_aliases":         snap.ModelAliases,
+		"vercel": map[string]any{
+			"has_token":     strings.TrimSpace(snap.Vercel.Token) != "",
+			"token_preview": maskSecretPreview(snap.Vercel.Token),
+			"project_id":    snap.Vercel.ProjectID,
+			"team_id":       snap.Vercel.TeamID,
+		},
 	}
 	accounts := make([]map[string]any, 0, len(snap.Accounts))
 	for _, acc := range snap.Accounts {
