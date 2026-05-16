@@ -5,19 +5,33 @@ import (
 	dsprotocol "ds2api/internal/deepseek/protocol"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 	"unicode"
 
 	"ds2api/internal/auth"
 	"ds2api/internal/config"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+func randomDeviceID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant RFC4122
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
 func (c *Client) Login(ctx context.Context, acc config.Account) (string, error) {
 	clients := c.requestClientsForAccount(acc)
 	payload := map[string]any{
 		"password":  strings.TrimSpace(acc.Password),
-		"device_id": "deepseek_to_api",
+		"device_id": randomDeviceID(),
 		"os":        "android",
 	}
 	if email := strings.TrimSpace(acc.Email); email != "" {
@@ -29,7 +43,7 @@ func (c *Client) Login(ctx context.Context, acc config.Account) (string, error) 
 	} else {
 		return "", errors.New("missing email/mobile")
 	}
-	resp, err := c.postJSON(ctx, clients.regular, clients.fallback, dsprotocol.DeepSeekLoginURL, dsprotocol.BaseHeaders, payload)
+	resp, err := c.postJSON(ctx, clients.regular, clients.fallback, dsprotocol.DeepSeekLoginURL, dsprotocol.GetRandomizedHeaders(), payload)
 	if err != nil {
 		return "", err
 	}
@@ -159,10 +173,7 @@ func (c *Client) GetPowForTarget(ctx context.Context, a *auth.RequestAuth, targe
 }
 
 func (c *Client) authHeaders(token string) map[string]string {
-	headers := make(map[string]string, len(dsprotocol.BaseHeaders)+1)
-	for k, v := range dsprotocol.BaseHeaders {
-		headers[k] = v
-	}
+	headers := dsprotocol.GetRandomizedHeaders()
 	headers["authorization"] = "Bearer " + token
 	return headers
 }

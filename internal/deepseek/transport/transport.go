@@ -4,12 +4,30 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
 	"time"
 
 	utls "github.com/refraction-networking/utls"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+var tlsFingerprintOptions = []utls.ClientHelloID{
+	utls.HelloChrome_Auto,
+	utls.HelloFirefox_Auto,
+	utls.HelloSafari_Auto,
+	utls.HelloRandomized,
+	utls.HelloRandomizedALPN,
+	utls.HelloRandomizedNoALPN,
+}
+
+func randomTLSFingerprint() utls.ClientHelloID {
+	return tlsFingerprintOptions[rand.Intn(len(tlsFingerprintOptions))]
+}
 
 type Doer interface {
 	Do(req *http.Request) (*http.Response, error)
@@ -79,7 +97,8 @@ func safariTLSDialer(dialContext DialContextFunc) func(ctx context.Context, netw
 		}
 		host, _, _ := net.SplitHostPort(addr)
 		uCfg := &utls.Config{ServerName: host}
-		uConn := utls.UClient(plainConn, uCfg, utls.HelloSafari_Auto)
+		fingerprint := randomTLSFingerprint()
+		uConn := utls.UClient(plainConn, uCfg, fingerprint)
 		if err := forceHTTP11ALPN(uConn); err != nil {
 			_ = plainConn.Close()
 			return nil, err

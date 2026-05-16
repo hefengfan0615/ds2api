@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"math/rand"
+	"time"
 )
 
 const (
@@ -67,7 +69,24 @@ type sharedConstants struct {
 //go:embed constants_shared.json
 var sharedConstantsJSON []byte
 
+var (
+	userAgentVariations = []string{
+		"DeepSeek/2.0.4 Android/35",
+		"DeepSeek/2.0.3 Android/34",
+		"DeepSeek/2.0.2 Android/33",
+		"DeepSeek/2.0.1 Android/32",
+		"DeepSeek/1.9.9 Android/31",
+	}
+	acceptLanguageVariations = []string{
+		"zh-CN,zh;q=0.9,en;q=0.8",
+		"zh-CN,zh;q=0.8,en;q=0.7",
+		"zh,en;q=0.9,zh-CN;q=0.8",
+		"en,zh;q=0.8,zh-CN;q=0.7",
+	}
+)
+
 func init() {
+	rand.Seed(time.Now().UnixNano())
 	cfg := sharedConstants{}
 	if err := json.Unmarshal(sharedConstantsJSON, &cfg); err != nil {
 		panic(fmt.Errorf("load DeepSeek shared constants: %w", err))
@@ -78,7 +97,8 @@ func init() {
 func applySharedConstants(cfg sharedConstants) {
 	client := normalizeClientConstants(cfg.Client)
 	ClientVersion = client.Version
-	BaseHeaders = buildBaseHeaders(client, cfg.BaseHeaders)
+	// For initialization, use non-randomized headers
+	BaseHeaders = buildBaseHeadersWithOptions(client, cfg.BaseHeaders, false)
 	SkipContainsPatterns = cloneStringSlice(defaultSkipContainsPatterns)
 	if len(cfg.SkipContainsPattern) > 0 {
 		SkipContainsPatterns = cloneStringSlice(cfg.SkipContainsPattern)
@@ -87,6 +107,83 @@ func applySharedConstants(cfg sharedConstants) {
 	if len(cfg.SkipExactPaths) > 0 {
 		SkipExactPathSet = toStringSet(cfg.SkipExactPaths)
 	}
+}
+
+// GetRandomizedHeaders returns a copy of BaseHeaders with randomized values
+func GetRandomizedHeaders() map[string]string {
+	out := cloneStringMap(BaseHeaders)
+	// Add randomization for actual requests
+	if _, hasUA := out["User-Agent"]; hasUA {
+		// Re-randomize User-Agent
+		userAgent := randomFromSlice(userAgentVariations)
+		out["User-Agent"] = userAgent
+	}
+	if _, hasAcceptLang := out["Accept-Language"]; hasAcceptLang {
+		out["Accept-Language"] = randomFromSlice(acceptLanguageVariations)
+	}
+	if _, hasXRequestedWith := out["X-Requested-With"]; !hasXRequestedWith && rand.Float32() > 0.7 {
+		out["X-Requested-With"] = "XMLHttpRequest"
+	}
+	return out
+}
+
+func randomFromSlice(items []string) string {
+	return items[rand.Intn(len(items))]
+}
+
+func buildBaseHeaders(client clientConstants, overrides map[string]string) map[string]string {
+	// Keep non-randomized for backward compatibility and tests
+	return buildBaseHeadersWithOptions(client, overrides, false)
+}
+
+func buildBaseHeadersWithOptions(client clientConstants, overrides map[string]string, randomize bool) map[string]string {
+	out := cloneStringMap(defaultStaticBaseHeaders)
+	for k, v := range overrides {
+		if k == "" || v == "" {
+			continue
+		}
+		out[k] = v
+	}
+	if client.Name != "" && client.Version != "" {
+		// Always override the User-Agent regardless of what's in overrides (matches original behavior
+		if randomize {
+			userAgent := randomFromSlice(userAgentVariations)
+			if rand.Float32() > 0.5 {
+				userAgent = client.Name + "/" + client.Version
+				if client.Platform == "android" && client.AndroidAPILevel != "" {
+					userAgent += " Android/" + client.AndroidAPILevel
+				}
+			}
+			out["User-Agent"] = userAgent
+		} else {
+			userAgent := client.Name + "/" + client.Version
+			if client.Platform == "android" && client.AndroidAPILevel != "" {
+				userAgent += " Android/" + client.AndroidAPILevel
+			}
+			out["User-Agent"] = userAgent
+		}
+	}
+	if client.Platform != "" {
+		// Always override x-client-platform
+		out["x-client-platform"] = client.Platform
+	}
+	if client.Version != "" {
+		// Always override x-client-version
+		out["x-client-version"] = client.Version
+	}
+	if client.Locale != "" {
+		// Always override x-client-locale
+		out["x-client-locale"] = client.Locale
+	}
+	if _, hasAcceptLang := out["Accept-Language"]; !hasAcceptLang {
+		if randomize {
+			out["Accept-Language"] = randomFromSlice(acceptLanguageVariations)
+		}
+	}
+	if _, hasXRequestedWith := out["X-Requested-With"]; !hasXRequestedWith && randomize && rand.Float32() > 0.7 {
+		out["X-Requested-With"] = "XMLHttpRequest"
+	}
+	return out
 }
 
 func normalizeClientConstants(in clientConstants) clientConstants {
@@ -103,33 +200,6 @@ func normalizeClientConstants(in clientConstants) clientConstants {
 		in.Locale = "zh_CN"
 	}
 	return in
-}
-
-func buildBaseHeaders(client clientConstants, overrides map[string]string) map[string]string {
-	out := cloneStringMap(defaultStaticBaseHeaders)
-	for k, v := range overrides {
-		if k == "" || v == "" {
-			continue
-		}
-		out[k] = v
-	}
-	if client.Name != "" && client.Version != "" {
-		userAgent := client.Name + "/" + client.Version
-		if client.Platform == "android" && client.AndroidAPILevel != "" {
-			userAgent += " Android/" + client.AndroidAPILevel
-		}
-		out["User-Agent"] = userAgent
-	}
-	if client.Platform != "" {
-		out["x-client-platform"] = client.Platform
-	}
-	if client.Version != "" {
-		out["x-client-version"] = client.Version
-	}
-	if client.Locale != "" {
-		out["x-client-locale"] = client.Locale
-	}
-	return out
 }
 
 func cloneStringMap(in map[string]string) map[string]string {
