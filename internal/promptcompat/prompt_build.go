@@ -18,15 +18,8 @@ func BuildOpenAIPromptWithToolInstructionsOnly(messagesRaw []any, toolsRaw any, 
 
 func buildOpenAIPrompt(messagesRaw []any, toolsRaw any, traceID string, toolPolicy ToolChoicePolicy, thinkingEnabled bool, includeToolDescriptions bool) (string, []string) {
 	messages := NormalizeOpenAIMessagesForPrompt(messagesRaw, traceID)
-	toolNames := []string{}
-	if tools, ok := toolsRaw.([]any); ok && len(tools) > 0 {
-		if includeToolDescriptions {
-			messages, toolNames = injectToolPrompt(messages, tools, toolPolicy)
-		} else {
-			messages, toolNames = injectToolPromptInstructionsOnly(messages, tools, toolPolicy)
-		}
-	}
-	return prompt.MessagesPrepareWithThinking(messages, thinkingEnabled), toolNames
+	// 不注入工具调用相关提示词
+	return prompt.MessagesPrepareWithThinking(messages, thinkingEnabled), []string{}
 }
 
 // BuildOpenAIPromptForAdapter exposes the OpenAI-compatible prompt building flow so

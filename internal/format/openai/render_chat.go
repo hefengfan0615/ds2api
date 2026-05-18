@@ -12,15 +12,11 @@ func BuildChatCompletion(completionID, model, finalPrompt, finalThinking, finalT
 }
 
 func BuildChatCompletionWithToolCalls(completionID, model, finalPrompt, finalThinking, finalText string, detected []toolcall.ParsedToolCall, toolsRaw any) map[string]any {
+	// 不处理工具调用，只返回文本
 	finishReason := "stop"
 	messageObj := map[string]any{"role": "assistant", "content": finalText}
 	if strings.TrimSpace(finalThinking) != "" {
 		messageObj["reasoning_content"] = finalThinking
-	}
-	if len(detected) > 0 {
-		finishReason = "tool_calls"
-		messageObj["tool_calls"] = toolcall.FormatOpenAIToolCalls(detected, toolsRaw)
-		messageObj["content"] = nil
 	}
 
 	return map[string]any{

@@ -241,24 +241,10 @@ func (s *chatStreamRuntime) finalize(finishReason string, deferEmptyOutput bool)
 	})
 	s.finalThinking = turn.Thinking
 	s.finalText = turn.Text
-	if len(turn.ToolCalls) > 0 && !s.toolCallsDoneEmitted {
-		s.sendDelta(map[string]any{
-			"tool_calls": formatFinalStreamToolCallsWithStableIDs(turn.ToolCalls, s.streamToolCallIDs, s.toolsRaw),
-		})
-		s.toolCallsEmitted = true
-		s.toolCallsDoneEmitted = true
-	} else if s.bufferToolContent {
+	// 不处理工具调用，只处理普通文本
+	if s.bufferToolContent {
 		batch := chatDeltaBatch{runtime: s}
 		for _, evt := range toolstream.Flush(&s.toolSieve, s.toolNames) {
-			if len(evt.ToolCalls) > 0 {
-				batch.flush()
-				s.toolCallsEmitted = true
-				s.toolCallsDoneEmitted = true
-				s.sendDelta(map[string]any{
-					"tool_calls": formatFinalStreamToolCallsWithStableIDs(evt.ToolCalls, s.streamToolCallIDs, s.toolsRaw),
-				})
-				s.resetStreamToolCallState()
-			}
 			if evt.Content == "" {
 				continue
 			}
@@ -332,51 +318,8 @@ func (s *chatStreamRuntime) onParsed(parsed sse.LineResult) streamengine.ParsedD
 		if p.CitationOnly {
 			continue
 		}
-		if !s.bufferToolContent {
-			batch.append("content", p.VisibleText)
-		} else {
-			events := toolstream.ProcessChunk(&s.toolSieve, p.RawText, s.toolNames)
-			for _, evt := range events {
-				if len(evt.ToolCallDeltas) > 0 {
-					if !s.emitEarlyToolDeltas {
-						continue
-					}
-					filtered := filterIncrementalToolCallDeltasByAllowed(evt.ToolCallDeltas, s.streamToolNames)
-					if len(filtered) == 0 {
-						continue
-					}
-					formatted := formatIncrementalStreamToolCallDeltas(filtered, s.streamToolCallIDs)
-					if len(formatted) == 0 {
-						continue
-					}
-					batch.flush()
-					tcDelta := map[string]any{
-						"tool_calls": formatted,
-					}
-					s.toolCallsEmitted = true
-					s.sendDelta(tcDelta)
-					continue
-				}
-				if len(evt.ToolCalls) > 0 {
-					batch.flush()
-					s.toolCallsEmitted = true
-					s.toolCallsDoneEmitted = true
-					tcDelta := map[string]any{
-						"tool_calls": formatFinalStreamToolCallsWithStableIDs(evt.ToolCalls, s.streamToolCallIDs, s.toolsRaw),
-					}
-					s.sendDelta(tcDelta)
-					s.resetStreamToolCallState()
-					continue
-				}
-				if evt.Content != "" {
-					cleaned := cleanVisibleOutput(evt.Content, s.stripReferenceMarkers)
-					if cleaned == "" || (s.searchEnabled && sse.IsCitation(cleaned)) {
-						continue
-					}
-					batch.append("content", cleaned)
-				}
-			}
-		}
+		// 无论是否 bufferToolContent，都直接输出文本，不处理工具调用
+		batch.append("content", p.VisibleText)
 	}
 	batch.flush()
 	return streamengine.ParsedDecision{ContentSeen: accumulated.ContentSeen}
