@@ -161,9 +161,6 @@ func (s *responsesStreamRuntime) finalize(finishReason string, deferEmptyOutput 
 	s.finalErrorStatus = 0
 	s.finalErrorMessage = ""
 	s.finalErrorCode = ""
-	if s.bufferToolContent {
-		s.processToolStreamEvents(toolstream.Flush(&s.sieve, s.toolNames), true, true)
-	}
 
 	finalThinking := s.accumulator.Thinking.String()
 	finalToolDetectionThinking := s.accumulator.ToolDetectionThinking.String()
@@ -188,16 +185,6 @@ func (s *responsesStreamRuntime) finalize(finishReason string, deferEmptyOutput 
 		ToolsRaw:              s.toolsRaw,
 		ToolChoice:            s.toolChoice,
 	})
-	textParsed := turn.ParsedToolCalls
-	detected := turn.ToolCalls
-	s.logToolPolicyRejections(textParsed)
-
-	if len(detected) > 0 {
-		s.toolCallsEmitted = true
-		if !s.toolCallsDoneEmitted {
-			s.emitFunctionCallDoneEvents(detected)
-		}
-	}
 
 	s.closeMessageItem()
 
@@ -215,8 +202,9 @@ func (s *responsesStreamRuntime) finalize(finishReason string, deferEmptyOutput 
 		s.failResponse(status, message, code)
 		return true
 	}
-	s.closeIncompleteFunctionItems()
 
+	// 不处理工具调用，只返回文本
+	var detected []toolcall.ParsedToolCall
 	obj := s.buildCompletedResponseObject(turn.Thinking, turn.Text, detected)
 	if s.persistResponse != nil {
 		s.persistResponse(obj)
@@ -279,12 +267,8 @@ func (s *responsesStreamRuntime) onParsed(parsed sse.LineResult) streamengine.Pa
 		if p.CitationOnly {
 			continue
 		}
-		if !s.bufferToolContent {
-			batch.append("text", p.VisibleText)
-			continue
-		}
-		batch.flush()
-		s.processToolStreamEvents(toolstream.ProcessChunk(&s.sieve, p.RawText, s.toolNames), true, true)
+		// 无论是否 bufferToolContent，都直接输出文本，不处理工具调用
+		batch.append("text", p.VisibleText)
 	}
 
 	batch.flush()
