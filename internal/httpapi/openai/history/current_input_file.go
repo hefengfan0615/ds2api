@@ -51,7 +51,6 @@ func (s Service) ApplyCurrentInputFile(ctx context.Context, a *auth.RequestAuth,
 	if strings.TrimSpace(fileText) == "" {
 		return stdReq, errors.New("current user input file produced empty transcript")
 	}
-	toolsText, _ := promptcompat.BuildOpenAIToolsContextTranscript(stdReq.ToolsRaw, stdReq.ToolChoice)
 	modelType := "default"
 	if resolvedType, ok := config.GetModelType(stdReq.ResolvedModel); ok {
 		modelType = resolvedType
@@ -71,28 +70,10 @@ func (s Service) ApplyCurrentInputFile(ctx context.Context, a *auth.RequestAuth,
 		return stdReq, errors.New("upload current user input file returned empty file id")
 	}
 
-	toolFileID := ""
-	if strings.TrimSpace(toolsText) != "" {
-		result, err := s.DS.UploadFile(ctx, a, dsclient.UploadFileRequest{
-			Filename:    currentToolsFilename,
-			ContentType: currentInputContentType,
-			Purpose:     currentInputPurpose,
-			ModelType:   modelType,
-			Data:        []byte(toolsText),
-		}, 3)
-		if err != nil {
-			return stdReq, fmt.Errorf("upload current tools file: %w", err)
-		}
-		toolFileID = strings.TrimSpace(result.ID)
-		if toolFileID == "" {
-			return stdReq, errors.New("upload current tools file returned empty file id")
-		}
-	}
-
 	messages := []any{
 		map[string]any{
 			"role":    "user",
-			"content": currentInputFilePrompt(toolFileID != ""),
+			"content": currentInputFilePrompt(false),
 		},
 	}
 
@@ -100,15 +81,12 @@ func (s Service) ApplyCurrentInputFile(ctx context.Context, a *auth.RequestAuth,
 	stdReq.HistoryText = fileText
 	stdReq.CurrentInputFileApplied = true
 	stdReq.CurrentInputFileID = fileID
-	stdReq.CurrentToolsFileID = toolFileID
-	stdReq.RefFileIDs = prependUniqueRefFileIDs(stdReq.RefFileIDs, fileID, toolFileID)
+	stdReq.CurrentToolsFileID = ""
+	stdReq.RefFileIDs = prependUniqueRefFileIDs(stdReq.RefFileIDs, fileID)
 	stdReq.FinalPrompt, stdReq.ToolNames = promptcompat.BuildOpenAIPromptWithToolInstructionsOnly(messages, stdReq.ToolsRaw, "", stdReq.ToolChoice, stdReq.Thinking)
 	// Token accounting must reflect the actual downstream context:
 	// uploaded context files + the continuation live prompt.
 	tokenParts := []string{fileText}
-	if strings.TrimSpace(toolsText) != "" {
-		tokenParts = append(tokenParts, toolsText)
-	}
 	tokenParts = append(tokenParts, stdReq.FinalPrompt)
 	stdReq.PromptTokenText = strings.Join(tokenParts, "\n")
 	return stdReq, nil
@@ -141,28 +119,9 @@ func (s Service) ReuploadAppliedCurrentInputFile(ctx context.Context, a *auth.Re
 		return stdReq, errors.New("upload current user input file returned empty file id")
 	}
 
-	toolsText, _ := promptcompat.BuildOpenAIToolsContextTranscript(stdReq.ToolsRaw, stdReq.ToolChoice)
-	toolFileID := ""
-	if strings.TrimSpace(toolsText) != "" {
-		result, err := s.DS.UploadFile(ctx, a, dsclient.UploadFileRequest{
-			Filename:    currentToolsFilename,
-			ContentType: currentInputContentType,
-			Purpose:     currentInputPurpose,
-			ModelType:   modelType,
-			Data:        []byte(toolsText),
-		}, 3)
-		if err != nil {
-			return stdReq, fmt.Errorf("upload current tools file: %w", err)
-		}
-		toolFileID = strings.TrimSpace(result.ID)
-		if toolFileID == "" {
-			return stdReq, errors.New("upload current tools file returned empty file id")
-		}
-	}
-
-	stdReq.RefFileIDs = replaceGeneratedCurrentInputRefs(stdReq.RefFileIDs, stdReq.CurrentInputFileID, stdReq.CurrentToolsFileID, fileID, toolFileID)
+	stdReq.RefFileIDs = replaceGeneratedCurrentInputRefs(stdReq.RefFileIDs, stdReq.CurrentInputFileID, "", fileID, "")
 	stdReq.CurrentInputFileID = fileID
-	stdReq.CurrentToolsFileID = toolFileID
+	stdReq.CurrentToolsFileID = ""
 	return stdReq, nil
 }
 
@@ -186,11 +145,8 @@ func latestUserInputForFile(messages []any) (int, string) {
 }
 
 func currentInputFilePrompt(hasToolsFile bool) string {
-	prompt := "Continue from the latest state in the attached DS2API_HISTORY.txt context. Treat it as the current working state and answer the latest user request directly."
-	if hasToolsFile {
-		prompt += " Available tool descriptions and parameter schemas are attached in DS2API_TOOLS.txt; use only those tools and follow the tool-call format rules in this prompt."
-	}
-	return prompt
+	// 不包含工具调用相关提示
+	return "Continue from the latest state in the attached DS2API_HISTORY.txt context. Treat it as the current working state and answer the latest user request directly."
 }
 
 func prependUniqueRefFileIDs(existing []string, fileIDs ...string) []string {
@@ -242,5 +198,5 @@ func replaceGeneratedCurrentInputRefs(existing []string, oldHistoryID, oldToolsI
 		}
 		filtered = append(filtered, trimmed)
 	}
-	return prependUniqueRefFileIDs(filtered, newHistoryID, newToolsID)
+	return prependUniqueRefFileIDs(filtered, newHistoryID)
 }
