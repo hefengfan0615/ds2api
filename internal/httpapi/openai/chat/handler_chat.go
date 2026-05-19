@@ -48,7 +48,9 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var sessionID string
+	streamComplete := make(chan struct{})
 	defer func() {
+		<-streamComplete
 		h.autoDeleteRemoteSession(r.Context(), a, sessionID)
 		h.Auth.Release(a)
 	}()

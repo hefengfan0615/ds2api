@@ -71,6 +71,15 @@ func (h *Handler) handleStreamWithRetry(w http.ResponseWriter, r *http.Request, 
 	if !ok {
 		return
 	}
+	
+	if config.IsVercel() {
+		defer func() {
+			if sessionIDRef != nil && *sessionIDRef != "" {
+				h.autoDeleteRemoteSession(r.Context(), a, *sessionIDRef)
+			}
+		}()
+	}
+	
 	completionruntime.ExecuteStreamWithRetry(r.Context(), h.DS, a, resp, payload, pow, completionruntime.StreamRetryOptions{
 		Surface:          "chat.completions",
 		Stream:           true,
